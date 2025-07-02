@@ -39,6 +39,7 @@ class AppointmentController extends Controller
         $validated = $request->validate([
             'service_id' => 'required|exists:services,id',
             'scheduled_at' => 'required|date_format:Y-m-d H:i',
+            'employee_id' => 'nullable|exists:employees,id',
             'special_requests' => 'nullable|string',
             'reference_photo' => 'nullable|string',
             // Datos del cliente para creación automática
@@ -62,22 +63,51 @@ class AppointmentController extends Controller
         $start = Carbon::createFromFormat('Y-m-d H:i', $validated['scheduled_at']);
         $end = (clone $start)->addMinutes($service->duration_minutes);
 
-        // Validar horario permitido (lunes a sábado, 9:00 a 18:00)
-        if ($start->isSunday() || $start->hour < 9 || $end->hour > 18 || ($end->hour === 18 && $end->minute > 0)) {
-            return response()->json(['message' => 'El turno debe ser de lunes a sábado entre 9:00 y 18:00'], 422);
+        // Si se especifica un empleado, validar que pueda realizar el servicio
+        if (isset($validated['employee_id'])) {
+            $employee = \App\Models\Employee::findOrFail($validated['employee_id']);
+            if (!$employee->isAvailableForService($service)) {
+                return response()->json(['message' => 'El empleado seleccionado no ofrece este servicio'], 422);
+            }
+            
+            // Validar que el empleado esté disponible en ese horario
+            $dayOfWeek = $start->dayOfWeek;
+            $timeStr = $start->format('H:i');
+            
+            $availableSchedule = $employee->schedules()
+                ->active()
+                ->forDay($dayOfWeek)
+                ->where('start_time', '<=', $timeStr)
+                ->where('end_time', '>=', $end->format('H:i'))
+                ->first();
+                
+            if (!$availableSchedule) {
+                return response()->json(['message' => 'El empleado no está disponible en ese horario'], 422);
+            }
+            
+            // Validar que no haya otro turno con el mismo empleado en ese horario
+            $overlap = Appointment::where('status', '!=', 'cancelled')
+                ->where('employee_id', $validated['employee_id'])
+                ->where(function($q) use ($start, $end) {
+                    $q->whereBetween('scheduled_at', [$start, $end->subMinute()])
+                      ->orWhereBetween('ends_at', [$start->addMinute(), $end]);
+                })->exists();
+        } else {
+            // Validar solapamiento general de turnos
+            $overlap = Appointment::where('status', '!=', 'cancelled')
+                ->where(function($q) use ($start, $end) {
+                    $q->whereBetween('scheduled_at', [$start, $end->subMinute()])
+                      ->orWhereBetween('ends_at', [$start->addMinute(), $end]);
+                })->exists();
         }
+        
+        if ($overlap) {
+            return response()->json(['message' => 'Ya existe un turno en ese horario'], 422);
+        }
+        
         // Validar anticipación mínima 24hs
         if ($start->lt(now()->addDay())) {
             return response()->json(['message' => 'Las reservas deben realizarse con al menos 24hs de anticipación'], 422);
-        }
-        // Validar solapamiento de turnos
-        $overlap = Appointment::where('status', '!=', 'cancelled')
-            ->where(function($q) use ($start, $end) {
-                $q->whereBetween('scheduled_at', [$start, $end->subMinute()])
-                  ->orWhereBetween('ends_at', [$start->addMinute(), $end]);
-            })->exists();
-        if ($overlap) {
-            return response()->json(['message' => 'Ya existe un turno en ese horario'], 422);
         }
         // Calcular precios y seña
         $total_price = $service->price;
@@ -86,6 +116,7 @@ class AppointmentController extends Controller
         $appointment = Appointment::create([
             'service_id' => $service->id,
             'client_id' => $client->id,
+            'employee_id' => $validated['employee_id'] ?? null,
             'scheduled_at' => $start,
             'ends_at' => $end,
             'status' => 'pending_deposit',

@@ -10,6 +10,7 @@ class TimeSlot extends Model
 {
     protected $fillable = [
         'service_id',
+        'employee_id',
         'date',
         'start_time',
         'end_time',
@@ -28,6 +29,11 @@ class TimeSlot extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     public function appointment(): BelongsTo
@@ -97,13 +103,23 @@ class TimeSlot extends Model
             $slotEnd = (clone $start)->addMinutes($durationMinutes);
             
             if ($slotEnd->lte($end)) {
-                self::create([
+                // Verificar si ya existe un slot para esta combinación
+                $existingSlot = self::where([
                     'service_id' => $serviceId,
                     'date' => $date,
                     'start_time' => $start->format('H:i'),
-                    'end_time' => $slotEnd->format('H:i'),
-                    'status' => 'available'
-                ]);
+                ])->first();
+                
+                // Solo crear si no existe
+                if (!$existingSlot) {
+                    self::create([
+                        'service_id' => $serviceId,
+                        'date' => $date,
+                        'start_time' => $start->format('H:i'),
+                        'end_time' => $slotEnd->format('H:i'),
+                        'status' => 'available'
+                    ]);
+                }
             }
             
             $start->addMinutes($durationMinutes);

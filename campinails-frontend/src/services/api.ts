@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AuthResponse, ApiResponse, Service, Client, Appointment, CreateAppointmentRequest, TimeSlot, CreateTimeSlotRequest, CreateTimeSlotsBulkRequest } from '../types';
+import type { AuthResponse, ApiResponse, Service, Client, Appointment, CreateAppointmentRequest, TimeSlot, CreateTimeSlotRequest, CreateTimeSlotsBulkRequest, Employee } from '../types';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
@@ -145,6 +145,50 @@ export const appointmentService = {
   },
 };
 
+export const employeeService = {
+  async getAll(params?: { active?: boolean; service_id?: number }) {
+    const response = await api.get<Employee[]>('/employees', { params });
+    return response.data;
+  },
+
+  async getPublic(params: { service_id: number; active?: boolean }) {
+    const response = await api.get<Employee[]>('/employees/public', { params });
+    return response.data;
+  },
+
+  async getById(id: number) {
+    const response = await api.get<Employee>(`/employees/${id}`);
+    return response.data;
+  },
+
+  async create(data: Partial<Employee>) {
+    const response = await api.post<Employee>('/employees', data);
+    return response.data;
+  },
+
+  async update(id: number, data: Partial<Employee>) {
+    const response = await api.put<Employee>(`/employees/${id}`, data);
+    return response.data;
+  },
+
+  async delete(id: number) {
+    const response = await api.delete(`/employees/${id}`);
+    return response.data;
+  },
+
+  async getSchedule(id: number, startDate: string, endDate: string, serviceId?: number) {
+    const response = await api.get<{ employee: Employee; schedule: TimeSlot[] }>(`/employees/${id}/schedule`, {
+      params: { start_date: startDate, end_date: endDate, service_id: serviceId }
+    });
+    return response.data;
+  },
+
+  async createSlots(id: number, data: any) {
+    const response = await api.post<{ message: string; created_count: number }>(`/employees/${id}/slots`, data);
+    return response.data;
+  },
+};
+
 export const timeSlotService = {
   async getAll(params?: { service_id?: number; date?: string; status?: string; future?: boolean }) {
     const response = await api.get<TimeSlot[]>('/time-slots', { params });
@@ -158,9 +202,9 @@ export const timeSlotService = {
     return response.data;
   },
 
-  async getAvailableSlots(serviceId: number, date: string) {
+  async getAvailableSlots(serviceId: number, date: string, employeeId?: number) {
     const response = await api.get<TimeSlot[]>('/time-slots/available', {
-      params: { service_id: serviceId, date }
+      params: { service_id: serviceId, date, employee_id: employeeId }
     });
     return response.data;
   },
@@ -192,6 +236,13 @@ export const timeSlotService = {
 
   async toggleBlock(id: number) {
     const response = await api.patch<{ message: string; slot: TimeSlot }>(`/time-slots/${id}/toggle-block`);
+    return response.data;
+  },
+
+  async getAvailableDays(serviceId: number, startDate: string, endDate: string, employeeId?: number) {
+    const response = await api.get<string[]>('/time-slots/available-days', {
+      params: { service_id: serviceId, start_date: startDate, end_date: endDate, employee_id: employeeId }
+    });
     return response.data;
   },
 };

@@ -51,23 +51,40 @@ export interface Appointment {
   client?: Client;
 }
 
-export interface TimeSlot {
+export interface Employee {
   id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  is_active: boolean;
+  specialties?: string[];
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  services?: Service[];
+}
+
+export interface TimeSlot {
+  id: number | null;
   service_id: number;
+  employee_id?: number;
   date: string;
   start_time: string;
   end_time: string;
   status: 'available' | 'reserved' | 'cancelled' | 'blocked';
   appointment_id?: number;
   notes?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   service?: Service;
+  employee?: Employee;
   appointment?: Appointment;
+  is_virtual?: boolean;
 }
 
 export interface CreateAppointmentRequest {
   service_id: number;
+  employee_id?: number;
   name: string;
   whatsapp: string;
   email?: string;

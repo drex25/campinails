@@ -14,7 +14,6 @@ export const AdminCalendar: React.FC<AdminCalendarProps> = ({ onSlotClick }) => 
   const [services, setServices] = useState<Service[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showCreateSlots, setShowCreateSlots] = useState(false);
 
   // Horarios de trabajo
   const workHours = Array.from({ length: 18 }, (_, i) => {
@@ -85,36 +84,6 @@ export const AdminCalendar: React.FC<AdminCalendarProps> = ({ onSlotClick }) => 
     }
   };
 
-  const handleSlotClick = (slot: TimeSlot | null, time: string, date: Date) => {
-    if (slot && onSlotClick) {
-      onSlotClick(slot);
-    } else {
-      // Crear nuevo slot
-      console.log('Crear slot para:', time, format(date, 'yyyy-MM-dd'));
-    }
-  };
-
-  const handleCreateSlotsBulk = async (formData: any) => {
-    if (!selectedService) return;
-    
-    try {
-      await timeSlotService.createBulk({
-        service_id: selectedService,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        start_time: formData.start_time,
-        end_time: formData.end_time,
-        duration_minutes: formData.duration_minutes || 30,
-        days_of_week: formData.days_of_week || [1, 2, 3, 4, 5, 6]
-      });
-      
-      setShowCreateSlots(false);
-      loadTimeSlots();
-    } catch (error) {
-      console.error('Error creando slots:', error);
-    }
-  };
-
   return (
     <div className="bg-white rounded-lg shadow">
       {/* Header del Calendario */}
@@ -156,13 +125,6 @@ export const AdminCalendar: React.FC<AdminCalendarProps> = ({ onSlotClick }) => 
             >
               →
             </button>
-
-            <button
-              onClick={() => setShowCreateSlots(true)}
-              className="btn-primary px-4 py-2"
-            >
-              Crear Slots
-            </button>
           </div>
         </div>
       </div>
@@ -199,7 +161,7 @@ export const AdminCalendar: React.FC<AdminCalendarProps> = ({ onSlotClick }) => 
                     <td key={`${time}-${day.toISOString()}`} className="p-1">
                       {slot ? (
                         <button
-                          onClick={() => handleSlotClick(slot, time, day)}
+                          onClick={() => onSlotClick?.(slot)}
                           className={`w-full p-2 text-xs rounded border ${getSlotStatusColor(slot.status)} hover:opacity-80 transition-opacity`}
                         >
                           <div className="font-medium">{slot.status === 'reserved' ? 'Reservado' : slot.status}</div>
@@ -211,7 +173,7 @@ export const AdminCalendar: React.FC<AdminCalendarProps> = ({ onSlotClick }) => 
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleSlotClick(null, time, day)}
+                          onClick={() => onSlotClick?.(null)}
                           className="w-full p-2 text-xs text-gray-400 border border-dashed border-gray-300 rounded hover:border-gray-400 hover:text-gray-600 transition-colors"
                         >
                           +
@@ -247,15 +209,6 @@ export const AdminCalendar: React.FC<AdminCalendarProps> = ({ onSlotClick }) => 
           </div>
         </div>
       </div>
-
-      {/* Modal para crear slots en masa */}
-      {showCreateSlots && (
-        <CreateSlotsModal
-          onClose={() => setShowCreateSlots(false)}
-          onSubmit={handleCreateSlotsBulk}
-          service={services.find(s => s.id === selectedService)}
-        />
-      )}
     </div>
   );
 };

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Service extends Model
 {
@@ -32,6 +33,11 @@ class Service extends Model
     public function timeSlots(): HasMany
     {
         return $this->hasMany(TimeSlot::class);
+    }
+
+    public function employees(): BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'employee_service');
     }
 
     public function getFormattedPriceAttribute(): string

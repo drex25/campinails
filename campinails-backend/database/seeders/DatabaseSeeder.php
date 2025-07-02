@@ -21,6 +21,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(ServiceSeeder::class);
-        $this->call(TimeSlotSeeder::class);
+        $this->call(EmployeeSeeder::class);
     }
 }

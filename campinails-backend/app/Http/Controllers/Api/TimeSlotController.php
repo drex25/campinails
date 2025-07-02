@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\TimeSlot;
 use App\Models\Service;
+use App\Models\Employee;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -125,11 +126,18 @@ class TimeSlotController extends Controller
 
             $startDate = Carbon::parse($validated['start_date']);
             $endDate = Carbon::parse($validated['end_date']);
-            $createdCount = 0;
+            $processedDays = 0;
+            $totalSlotsCreated = 0;
 
             for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
                 // Solo crear slots para los días de la semana especificados
                 if (in_array($date->dayOfWeek, $daysOfWeek)) {
+                    // Contar slots existentes antes de crear
+                    $existingSlots = TimeSlot::where([
+                        'service_id' => $validated['service_id'],
+                        'date' => $date->format('Y-m-d'),
+                    ])->count();
+                    
                     TimeSlot::createSlotsForService(
                         $validated['service_id'],
                         $date->format('Y-m-d'),
@@ -137,13 +145,22 @@ class TimeSlotController extends Controller
                         $validated['end_time'],
                         $durationMinutes
                     );
-                    $createdCount++;
+                    
+                    // Contar slots después de crear
+                    $newSlots = TimeSlot::where([
+                        'service_id' => $validated['service_id'],
+                        'date' => $date->format('Y-m-d'),
+                    ])->count();
+                    
+                    $totalSlotsCreated += ($newSlots - $existingSlots);
+                    $processedDays++;
                 }
             }
 
             return response()->json([
-                'message' => "Se crearon slots para {$createdCount} días",
-                'created_count' => $createdCount
+                'message' => "Procesados {$processedDays} días. Se crearon {$totalSlotsCreated} slots nuevos.",
+                'processed_days' => $processedDays,
+                'created_slots' => $totalSlotsCreated
             ], 201);
         } catch (\Exception $e) {
             Log::error('Error en createBulk: ' . $e->getMessage());
@@ -163,16 +180,91 @@ class TimeSlotController extends Controller
         $validated = $request->validate([
             'service_id' => 'required|exists:services,id',
             'date' => 'required|date|after_or_equal:today',
+            'employee_id' => 'nullable|exists:employees,id',
         ]);
 
-        $slots = TimeSlot::with('service')
+        $query = TimeSlot::with(['service', 'employee'])
             ->forService($validated['service_id'])
             ->forDate($validated['date'])
-            ->available()
-            ->orderBy('start_time')
-            ->get();
+            ->available();
+
+        // Si se especifica un empleado, filtrar por él
+        if (isset($validated['employee_id'])) {
+            $query->where('employee_id', $validated['employee_id']);
+        }
+
+        $slots = $query->orderBy('start_time')->get();
+
+        // Si no hay slots creados, generar automáticamente basado en horarios de empleados
+        if ($slots->isEmpty()) {
+            $slots = $this->generateAvailableSlots(
+                $validated['service_id'],
+                $validated['date'],
+                $validated['employee_id'] ?? null
+            );
+        }
 
         return response()->json($slots);
+    }
+
+    /**
+     * Generar slots disponibles automáticamente basado en horarios de empleados
+     */
+    private function generateAvailableSlots(int $serviceId, string $date, ?int $employeeId = null): array
+    {
+        $service = Service::findOrFail($serviceId);
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+        $slots = [];
+
+        // Obtener empleados que ofrecen este servicio
+        $employeesQuery = Employee::active()->whereHas('services', function ($q) use ($serviceId) {
+            $q->where('service_id', $serviceId);
+        });
+
+        if ($employeeId) {
+            $employeesQuery->where('id', $employeeId);
+        }
+
+        $employees = $employeesQuery->get();
+
+        foreach ($employees as $employee) {
+            // Obtener horarios del empleado para este día
+            $schedules = $employee->schedules()
+                ->active()
+                ->forDay($dayOfWeek)
+                ->get();
+
+            foreach ($schedules as $schedule) {
+                $generatedSlots = $schedule->generateSlotsForService($service, $date);
+                
+                foreach ($generatedSlots as $slotData) {
+                    // Verificar si ya existe un slot para este empleado, servicio, fecha y hora
+                    $existingSlot = TimeSlot::where([
+                        'employee_id' => $employee->id,
+                        'service_id' => $serviceId,
+                        'date' => $date,
+                        'start_time' => $slotData['start_time'],
+                    ])->first();
+
+                    if (!$existingSlot) {
+                        $slots[] = [
+                            'id' => null, // Slot virtual, no existe en BD
+                            'service_id' => $serviceId,
+                            'employee_id' => $employee->id,
+                            'date' => $date,
+                            'start_time' => $slotData['start_time'],
+                            'end_time' => $slotData['end_time'],
+                            'status' => 'available',
+                            'service' => $service,
+                            'employee' => $employee,
+                            'is_virtual' => true // Marcar como slot virtual
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $slots;
     }
 
     /**
@@ -191,5 +283,31 @@ class TimeSlotController extends Controller
         }
 
         return response()->json(['message' => $message, 'slot' => $timeSlot->load('service')]);
+    }
+
+    /**
+     * Devuelve los días con al menos un slot disponible para un servicio y rango de fechas
+     */
+    public function getAvailableDays(Request $request)
+    {
+        $validated = $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'employee_id' => 'nullable|exists:employees,id',
+        ]);
+
+        $query = \App\Models\TimeSlot::query()
+            ->where('service_id', $validated['service_id'])
+            ->whereBetween('date', [$validated['start_date'], $validated['end_date']])
+            ->where('status', 'available');
+
+        if (isset($validated['employee_id'])) {
+            $query->where('employee_id', $validated['employee_id']);
+        }
+
+        $days = $query->pluck('date')->unique()->values();
+
+        return response()->json($days);
     }
 }

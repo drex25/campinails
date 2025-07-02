@@ -11,6 +11,7 @@ class Appointment extends Model
     protected $fillable = [
         'service_id',
         'client_id',
+        'employee_id',
         'scheduled_at',
         'ends_at',
         'status',
@@ -41,6 +42,11 @@ class Appointment extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     public function getFormattedScheduledAtAttribute(): string

@@ -3,15 +3,16 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { format, addDays } from 'date-fns';
-import { appointmentService, serviceService, timeSlotService } from '../services/api';
-import type { Service, TimeSlot } from '../types';
+import { appointmentService, serviceService, timeSlotService, employeeService } from '../services/api';
+import type { Service, TimeSlot, Employee } from '../types';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const schema = yup.object({
   service_id: yup.number().required('Debes seleccionar un servicio'),
   name: yup.string().required('Nombre es requerido'),
   whatsapp: yup.string().required('WhatsApp es requerido'),
   email: yup.string().email('Email inválido').optional(),
-  slot_id: yup.number().required('Debes seleccionar un horario'),
   special_requests: yup.string().optional(),
 });
 
@@ -20,18 +21,21 @@ interface AppointmentFormData {
   name: string;
   whatsapp: string;
   email?: string;
-  slot_id: number;
   special_requests?: string;
 }
 
 export const AppointmentForm: React.FC = () => {
   const [services, setServices] = useState<Service[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [availableDays, setAvailableDays] = useState<string[]>([]);
 
   const {
     register,
@@ -61,23 +65,42 @@ export const AppointmentForm: React.FC = () => {
     if (watchedServiceId) {
       const service = services.find(s => s.id === watchedServiceId);
       setSelectedService(service || null);
-      setSelectedDate(''); // Reset fecha cuando cambia servicio
-      setAvailableSlots([]); // Reset slots
-      setValue('slot_id', 0); // Reset slot seleccionado
+      setSelectedEmployee(null);
+      setSelectedDate('');
+      setSelectedSlot(null);
+      setAvailableSlots([]);
+      if (service) {
+        loadEmployeesForService(service.id);
+      }
     }
-  }, [watchedServiceId, services, setValue]);
+  }, [watchedServiceId, services]);
 
   useEffect(() => {
-    if (selectedService && selectedDate) {
-      loadAvailableSlots();
+    if (selectedService) {
+      loadAvailableDays();
     }
-  }, [selectedService, selectedDate]);
+  }, [selectedService, selectedEmployee]);
+
+  useEffect(() => {
+    console.log('Estado actual - selectedService:', selectedService, 'employees:', employees);
+  }, [selectedService, employees]);
+
+  const loadEmployeesForService = async (serviceId: number) => {
+    try {
+      const employeesData = await employeeService.getPublic({ service_id: serviceId, active: true });
+      console.log('Empleados cargados:', employeesData);
+      setEmployees(employeesData);
+    } catch (error) {
+      console.error('Error cargando empleados:', error);
+    }
+  };
 
   const loadAvailableSlots = async () => {
     if (!selectedService || !selectedDate) return;
     
     try {
-      const slots = await timeSlotService.getAvailableSlots(selectedService.id, selectedDate);
+      const employeeId = selectedEmployee?.id;
+      const slots = await timeSlotService.getAvailableSlots(selectedService.id, selectedDate, employeeId);
       setAvailableSlots(slots);
     } catch (error) {
       console.error('Error cargando slots disponibles:', error);
@@ -85,19 +108,37 @@ export const AppointmentForm: React.FC = () => {
     }
   };
 
+  const loadAvailableDays = async () => {
+    if (!selectedService) return;
+    const today = new Date();
+    const startDate = format(addDays(today, 1), 'yyyy-MM-dd');
+    const endDate = format(addDays(today, 30), 'yyyy-MM-dd');
+    try {
+      const days = await timeSlotService.getAvailableDays(
+        selectedService.id,
+        startDate,
+        endDate,
+        selectedEmployee?.id
+      );
+      setAvailableDays(days);
+    } catch (error) {
+      setAvailableDays([]);
+    }
+  };
+
   const onSubmit = async (data: AppointmentFormData) => {
+    if (!selectedSlot) {
+      setError('Debes seleccionar un horario');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
     try {
-      // Obtener el slot seleccionado para enviar la fecha y hora
-      const selectedSlot = availableSlots.find(slot => slot.id === data.slot_id);
-      if (!selectedSlot) {
-        throw new Error('Slot no encontrado');
-      }
-
       await appointmentService.create({
         service_id: data.service_id,
+        employee_id: selectedSlot.employee_id,
         name: data.name,
         whatsapp: data.whatsapp,
         email: data.email,
@@ -118,7 +159,7 @@ export const AppointmentForm: React.FC = () => {
   };
 
   const getMaxDate = () => {
-    const maxDate = addDays(new Date(), 30); // Máximo 30 días adelante
+    const maxDate = addDays(new Date(), 30);
     return format(maxDate, 'yyyy-MM-dd');
   };
 
@@ -171,7 +212,7 @@ export const AppointmentForm: React.FC = () => {
                 Selecciona tu servicio
               </label>
               <select
-                {...register('service_id')}
+                {...register('service_id', { valueAsNumber: true })}
                 className="input-field"
               >
                 <option value="">Elige un servicio...</option>
@@ -202,22 +243,51 @@ export const AppointmentForm: React.FC = () => {
               </div>
             )}
 
+            {/* Selección de Empleado */}
+            {employees.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Selecciona tu profesional (opcional)
+                </label>
+                <select
+                  value={selectedEmployee?.id || ''}
+                  onChange={(e) => {
+                    const employee = employees.find(emp => emp.id === Number(e.target.value));
+                    setSelectedEmployee(employee || null);
+                  }}
+                  className="input-field"
+                >
+                  <option value="">Cualquier profesional disponible</option>
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.name}
+                      {employee.specialties && employee.specialties.length > 0 && (
+                        ` - ${employee.specialties.join(', ')}`
+                      )}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Selección de Fecha */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Fecha
               </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                min={getMinDate()}
-                max={getMaxDate()}
+              <DatePicker
+                selected={selectedDate ? new Date(selectedDate) : null}
+                onChange={date => setSelectedDate(date ? format(date as Date, 'yyyy-MM-dd') : '')}
+                minDate={addDays(new Date(), 1)}
+                maxDate={addDays(new Date(), 30)}
+                filterDate={date => availableDays.includes(format(date, 'yyyy-MM-dd'))}
+                placeholderText="Selecciona una fecha"
                 className="input-field"
+                dateFormat="yyyy-MM-dd"
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
-                Horarios: Lunes a Sábado de 9:00 a 18:00. Mínimo 24hs de anticipación.
+                Horarios: Lunes a Sábado. Mínimo 24hs de anticipación.
               </p>
             </div>
 
@@ -230,21 +300,24 @@ export const AppointmentForm: React.FC = () => {
                 <div className="grid grid-cols-3 gap-2">
                   {availableSlots.map((slot) => (
                     <button
-                      key={slot.id}
+                      key={`${slot.employee_id}-${slot.start_time}`}
                       type="button"
-                      onClick={() => setValue('slot_id', slot.id)}
+                      onClick={() => setSelectedSlot(slot)}
                       className={`p-3 text-sm rounded-lg border transition-colors ${
-                        watch('slot_id') === slot.id
+                        selectedSlot === slot
                           ? 'bg-campi-brown text-white border-campi-brown'
                           : 'bg-white text-gray-700 border-gray-300 hover:border-campi-brown'
                       }`}
                     >
-                      {slot.start_time}
+                      <div className="font-medium">{slot.start_time}</div>
+                      {slot.employee && (
+                        <div className="text-xs opacity-75">{slot.employee.name}</div>
+                      )}
                     </button>
                   ))}
                 </div>
-                {errors.slot_id && (
-                  <p className="mt-1 text-sm text-red-600">{errors.slot_id.message}</p>
+                {!selectedSlot && (
+                  <p className="mt-1 text-sm text-red-600">Debes seleccionar un horario</p>
                 )}
               </div>
             )}
@@ -333,7 +406,7 @@ export const AppointmentForm: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isLoading || !selectedDate || availableSlots.length === 0}
+              disabled={isLoading || !selectedDate || availableSlots.length === 0 || !selectedSlot}
               className="btn-primary w-full flex justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
