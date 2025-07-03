@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, employeeService, serviceService } from '../services/api';
-import { AdminCalendar } from '../components/AdminCalendar';
-import type { TimeSlot, Employee, Service } from '../types';
+import type { Employee, Service } from '../types';
 import ReactModal from 'react-modal';
 import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
 
-type AdminSection = 'dashboard' | 'calendar' | 'services' | 'appointments' | 'clients' | 'employees';
+type AdminSection = 'dashboard' | 'services' | 'employees';
 
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const user = authService.getUser();
-  const [activeSection, setActiveSection] = useState<AdminSection>('calendar');
+  const [activeSection, setActiveSection] = useState<AdminSection>('dashboard');
 
   const handleLogout = async () => {
     try {
@@ -24,27 +23,16 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleSlotClick = (slot: TimeSlot) => {
-    console.log('Slot clicked:', slot);
-    // Aquí puedes abrir un modal para editar el slot
-  };
-
   const renderSection = () => {
     switch (activeSection) {
-      case 'calendar':
-        return <AdminCalendar onSlotClick={handleSlotClick} />;
       case 'dashboard':
         return <DashboardSection />;
       case 'services':
         return <ServicesSection />;
-      case 'appointments':
-        return <AppointmentsSection />;
-      case 'clients':
-        return <ClientsSection />;
       case 'employees':
         return <AdminEmployeesSection />;
       default:
-        return <AdminCalendar onSlotClick={handleSlotClick} />;
+        return <DashboardSection />;
     }
   };
 
@@ -83,10 +71,7 @@ export const AdminPage: React.FC = () => {
           <div className="flex space-x-8">
             {[
               { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-              { id: 'calendar', label: 'Calendario', icon: '📅' },
               { id: 'services', label: 'Servicios', icon: '💅' },
-              { id: 'appointments', label: 'Turnos', icon: '📋' },
-              { id: 'clients', label: 'Clientes', icon: '👥' },
               { id: 'employees', label: 'Empleados', icon: '🧑‍' },
             ].map((section) => (
               <button
@@ -116,7 +101,7 @@ export const AdminPage: React.FC = () => {
   );
 };
 
-// Componentes de sección (placeholder por ahora)
+// Componentes de sección
 const DashboardSection: React.FC = () => (
   <div className="space-y-6">
     <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
@@ -154,24 +139,6 @@ const ServicesSection: React.FC = () => (
     <h2 className="text-2xl font-bold text-gray-900">Gestión de Servicios</h2>
     <div className="card">
       <p className="text-gray-600">Aquí irá la gestión de servicios...</p>
-    </div>
-  </div>
-);
-
-const AppointmentsSection: React.FC = () => (
-  <div className="space-y-6">
-    <h2 className="text-2xl font-bold text-gray-900">Gestión de Turnos</h2>
-    <div className="card">
-      <p className="text-gray-600">Aquí irá la gestión de turnos...</p>
-    </div>
-  </div>
-);
-
-const ClientsSection: React.FC = () => (
-  <div className="space-y-6">
-    <h2 className="text-2xl font-bold text-gray-900">Gestión de Clientes</h2>
-    <div className="card">
-      <p className="text-gray-600">Aquí irá la gestión de clientes...</p>
     </div>
   </div>
 );
@@ -323,6 +290,8 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({ isOpen, onClose, 
         ...employee,
         service_ids: employee.services?.map(s => s.id) || [],
         schedule: (employee as any).schedules || daysOfWeek.map(day => ({ day_of_week: day.id, start_time: '09:00', end_time: '18:00', is_active: true })),
+        is_active: employee.is_active ? 'true' : 'false',
+        specialties: Array.isArray(employee.specialties) ? employee.specialties.join(', ') : employee.specialties || '',
       });
     } else {
       reset();
