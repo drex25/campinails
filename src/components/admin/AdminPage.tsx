@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/api';
+import { authService } from '../../services/api';
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -80,6 +80,12 @@ export const AdminPage: React.FC = () => {
     { id: 'reports', label: 'Reportes', icon: BarChart3, color: 'text-violet-600' },
   ];
 
+  // Función para navegar a los horarios de un empleado específico
+  const navigateToEmployeeSchedule = (employeeId: number) => {
+    setSelectedEmployeeId(employeeId);
+    setActiveSection('employee_schedules');
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case 'dashboard':
@@ -109,12 +115,6 @@ export const AdminPage: React.FC = () => {
       default:
         return <DashboardSection />;
     }
-  };
-
-  // Función para navegar a los horarios de un empleado específico
-  const navigateToEmployeeSchedule = (employeeId: number) => {
-    setSelectedEmployeeId(employeeId);
-    setActiveSection('employee_schedules');
   };
 
   return (

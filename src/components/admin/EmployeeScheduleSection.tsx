@@ -1,20 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { employeeService } from '../../services/api';
-import type { Employee, Service } from '../../types';
-import { Calendar, Clock, User, Plus, Save, X, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import type { Employee, EmployeeSchedule } from '../../types';
+import { Calendar, Clock, User, Plus, Save, X, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { ToastContainer } from '../ui/Toast';
 import { Modal } from '../ui/Modal';
-
-interface EmployeeSchedule {
-  id: number;
-  employee_id: number;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  is_active: boolean;
-  notes?: string;
-}
 
 export const EmployeeScheduleSection: React.FC<{ employeeId?: number | null }> = ({ employeeId }) => {
   const [employee, setEmployee] = useState<Employee | null>(null);
