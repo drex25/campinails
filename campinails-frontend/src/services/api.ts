@@ -274,4 +274,164 @@ export const timeSlotService = {
   },
 };
 
+// Servicios para pagos
+export const paymentService = {
+  async getAll(params?: { status?: string; payment_method?: string; appointment_id?: number }) {
+    const response = await api.get('/payments', { params });
+    return response.data;
+  },
+
+  async getById(id: number) {
+    const response = await api.get(`/payments/${id}`);
+    return response.data;
+  },
+
+  async create(data: any) {
+    const response = await api.post('/payments', data);
+    return response.data;
+  },
+
+  async confirm(id: number) {
+    const response = await api.post(`/payments/${id}/confirm`);
+    return response.data;
+  },
+
+  async refund(id: number, data: { amount?: number; reason: string }) {
+    const response = await api.post(`/payments/${id}/refund`, data);
+    return response.data;
+  }
+};
+
+// Servicios para promociones
+export const promotionService = {
+  async getAll(params?: { active?: boolean; code?: string }) {
+    const response = await api.get('/promotions', { params });
+    return response.data;
+  },
+
+  async getActive() {
+    const response = await api.get('/promotions/active');
+    return response.data;
+  },
+
+  async getById(id: number) {
+    const response = await api.get(`/promotions/${id}`);
+    return response.data;
+  },
+
+  async create(data: any) {
+    const response = await api.post('/promotions', data);
+    return response.data;
+  },
+
+  async update(id: number, data: any) {
+    const response = await api.put(`/promotions/${id}`, data);
+    return response.data;
+  },
+
+  async delete(id: number) {
+    const response = await api.delete(`/promotions/${id}`);
+    return response.data;
+  },
+
+  async validate(data: { code: string; service_id: number; date: string; amount: number }) {
+    const response = await api.post('/promotions/validate', data);
+    return response.data;
+  }
+};
+
+// Servicios para inventario
+export const productService = {
+  async getAll(params?: { category?: string; active?: boolean; low_stock?: boolean; search?: string }) {
+    const response = await api.get('/products', { params });
+    return response.data;
+  },
+
+  async getById(id: number) {
+    const response = await api.get(`/products/${id}`);
+    return response.data;
+  },
+
+  async create(data: any) {
+    const response = await api.post('/products', data);
+    return response.data;
+  },
+
+  async update(id: number, data: any) {
+    const response = await api.put(`/products/${id}`, data);
+    return response.data;
+  },
+
+  async delete(id: number) {
+    const response = await api.delete(`/products/${id}`);
+    return response.data;
+  },
+
+  async adjustStock(id: number, data: { quantity: number; reason: string; notes?: string }) {
+    const response = await api.post(`/products/${id}/adjust-stock`, data);
+    return response.data;
+  },
+
+  async getLowStock() {
+    const response = await api.get('/products/low-stock');
+    return response.data;
+  },
+
+  async getCategories() {
+    const response = await api.get('/products/categories');
+    return response.data;
+  },
+
+  async getStockReport(params?: { category?: string }) {
+    const response = await api.get('/products/stock-report', { params });
+    return response.data;
+  }
+};
+
+// Servicios para notificaciones
+export const notificationService = {
+  async getAll(params?: { type?: string; status?: string; recipient_type?: string }) {
+    const response = await api.get('/notifications', { params });
+    return response.data;
+  },
+
+  async create(data: any) {
+    const response = await api.post('/notifications', data);
+    return response.data;
+  },
+
+  async markAsRead(id: number) {
+    const response = await api.patch(`/notifications/${id}/mark-as-read`);
+    return response.data;
+  },
+
+  async resend(id: number) {
+    const response = await api.post(`/notifications/${id}/resend`);
+    return response.data;
+  },
+
+  async sendBulk(data: any) {
+    const response = await api.post('/notifications/bulk', data);
+    return response.data;
+  }
+};
+
+// Servicios para dashboard
+export const dashboardService = {
+  async getStats(period: string = 'month') {
+    const response = await api.get('/dashboard/stats', { params: { period } });
+    return response.data;
+  },
+
+  async getUpcomingAppointments() {
+    const response = await api.get('/dashboard/upcoming-appointments');
+    return response.data;
+  },
+
+  async getRecentActivity() {
+    const response = await api.get('/dashboard/recent-activity');
+    return response.data;
+  }
+};
+
 export default api;

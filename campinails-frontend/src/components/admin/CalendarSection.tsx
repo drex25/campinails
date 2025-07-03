@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay, parseISO, addMonths, subMonths, startOfMonth, endOfMonth, eachWeekOfInterval, getDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay, parseISO, addMonths, subMonths, startOfMonth, endOfMonth, eachWeekOfInterval, getDay, parse, addMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { appointmentService, serviceService, employeeService } from '../../services/api';
-import type { Appointment, Service, Employee } from '../../types';
+import type { Appointment, Service, Employee, EmployeeSchedule } from '../../types';
 import { Calendar, ChevronLeft, ChevronRight, Plus, Filter, Search, Grid, List, User, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { AppointmentForm } from '../forms/AppointmentForm';
 import { useToast } from '../../hooks/useToast';
@@ -16,6 +16,7 @@ export const CalendarSection: React.FC = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [employeeSchedules, setEmployeeSchedules] = useState<EmployeeSchedule[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -37,6 +38,9 @@ export const CalendarSection: React.FC = () => {
 
   useEffect(() => {
     loadAppointments();
+    if (selectedEmployee) {
+      loadEmployeeSchedules();
+    }
   }, [selectedService, selectedEmployee, currentDate, viewMode]);
 
   const loadServices = async () => {
@@ -91,6 +95,80 @@ export const CalendarSection: React.FC = () => {
       error('Error', 'No se pudieron cargar las citas');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadEmployeeSchedules = async () => {
+    if (!selectedEmployee) return;
+    
+    try {
+      let startDate, endDate;
+      
+      if (viewMode === 'week') {
+        startDate = format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        endDate = format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      } else {
+        startDate = format(startOfMonth(currentDate), 'yyyy-MM-dd');
+        endDate = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+      }
+      
+      // Aquí deberíamos cargar los horarios del empleado desde la API
+      // Por ahora, usamos datos de ejemplo
+      const mockSchedules: EmployeeSchedule[] = [
+        {
+          id: 1,
+          employee_id: selectedEmployee,
+          day_of_week: 1, // Lunes
+          start_time: '09:00',
+          end_time: '18:00',
+          is_active: true,
+        },
+        {
+          id: 2,
+          employee_id: selectedEmployee,
+          day_of_week: 2, // Martes
+          start_time: '09:00',
+          end_time: '18:00',
+          is_active: true,
+        },
+        {
+          id: 3,
+          employee_id: selectedEmployee,
+          day_of_week: 3, // Miércoles
+          start_time: '09:00',
+          end_time: '18:00',
+          is_active: true,
+        },
+        {
+          id: 4,
+          employee_id: selectedEmployee,
+          day_of_week: 4, // Jueves
+          start_time: '09:00',
+          end_time: '18:00',
+          is_active: true,
+        },
+        {
+          id: 5,
+          employee_id: selectedEmployee,
+          day_of_week: 5, // Viernes
+          start_time: '09:00',
+          end_time: '18:00',
+          is_active: true,
+        },
+        {
+          id: 6,
+          employee_id: selectedEmployee,
+          day_of_week: 6, // Sábado
+          start_time: '09:00',
+          end_time: '14:00',
+          is_active: true,
+        },
+      ];
+      
+      setEmployeeSchedules(mockSchedules);
+    } catch (err) {
+      console.error('Error cargando horarios del empleado:', err);
+      error('Error', 'No se pudieron cargar los horarios del empleado');
     }
   };
 
@@ -153,6 +231,29 @@ export const CalendarSection: React.FC = () => {
     });
   };
 
+  // Verificar si un empleado tiene horario para un día específico
+  const hasEmployeeScheduleForDay = (dayOfWeek: number) => {
+    if (!selectedEmployee || employeeSchedules.length === 0) return true; // Si no hay empleado seleccionado o no hay horarios, mostrar todos los días
+    
+    return employeeSchedules.some(schedule => 
+      schedule.day_of_week === dayOfWeek && schedule.is_active
+    );
+  };
+
+  // Verificar si un horario está dentro del horario de trabajo del empleado
+  const isTimeInEmployeeSchedule = (time: string, dayOfWeek: number) => {
+    if (!selectedEmployee || employeeSchedules.length === 0) return true; // Si no hay empleado seleccionado o no hay horarios, mostrar todos los horarios
+    
+    const schedule = employeeSchedules.find(s => s.day_of_week === dayOfWeek && s.is_active);
+    if (!schedule) return false;
+    
+    const timeObj = parse(time, 'HH:mm', new Date());
+    const startTimeObj = parse(schedule.start_time, 'HH:mm', new Date());
+    const endTimeObj = parse(schedule.end_time, 'HH:mm', new Date());
+    
+    return timeObj >= startTimeObj && timeObj < endTimeObj;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200';
@@ -206,13 +307,15 @@ export const CalendarSection: React.FC = () => {
   };
 
   const renderWeekView = () => {
+    const weekDays = getWeekDays();
+    
     return (
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
               <th className="p-4 text-left text-sm font-semibold text-gray-600 w-24">Hora</th>
-              {getWeekDays().map(day => (
+              {weekDays.map(day => (
                 <th key={day.toISOString()} className="p-4 text-center text-sm font-semibold text-gray-600 min-w-32">
                   <div className="flex flex-col items-center">
                     <span className="text-xs text-gray-400 uppercase">
@@ -232,8 +335,11 @@ export const CalendarSection: React.FC = () => {
                 <td className="p-4 text-sm text-gray-600 font-medium bg-gray-50">
                   {time}
                 </td>
-                {getWeekDays().map(day => {
+                {weekDays.map(day => {
+                  const dayOfWeek = day.getDay() === 0 ? 7 : day.getDay(); // Convertir 0 (domingo) a 7
+                  const isInSchedule = isTimeInEmployeeSchedule(time, dayOfWeek);
                   const appointmentsAtTime = getAppointmentsForTimeAndDate(time, day);
+                  
                   return (
                     <td key={`${time}-${day.toISOString()}`} className="p-2">
                       {appointmentsAtTime.length > 0 ? (
@@ -260,13 +366,15 @@ export const CalendarSection: React.FC = () => {
                             </button>
                           ))}
                         </div>
-                      ) : (
+                      ) : isInSchedule ? (
                         <button
                           onClick={() => handleNewAppointment(day, time)}
                           className="w-full p-3 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 group"
                         >
                           <Plus className="w-4 h-4 mx-auto group-hover:scale-110 transition-transform duration-200" />
                         </button>
+                      ) : (
+                        <div className="w-full h-full p-3 bg-gray-50 opacity-50 rounded-2xl"></div>
                       )}
                     </td>
                   );
@@ -300,6 +408,8 @@ export const CalendarSection: React.FC = () => {
                 {week.map(day => {
                   const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                   const isToday = isSameDay(day, new Date());
+                  const dayOfWeek = day.getDay() === 0 ? 7 : day.getDay(); // Convertir 0 (domingo) a 7
+                  const hasSchedule = hasEmployeeScheduleForDay(dayOfWeek);
                   
                   // Obtener todos los turnos para este día
                   const dayAppointments = getAppointmentsForDate(day);
@@ -312,7 +422,7 @@ export const CalendarSection: React.FC = () => {
                   return (
                     <td 
                       key={day.toISOString()} 
-                      className={`p-1 align-top ${isCurrentMonth ? '' : 'bg-gray-50 opacity-50'}`}
+                      className={`p-1 align-top ${isCurrentMonth ? '' : 'bg-gray-50 opacity-50'} ${!hasSchedule && selectedEmployee ? 'opacity-30' : ''}`}
                       style={{ height: '120px' }}
                     >
                       <div className="h-full rounded-xl border border-gray-100 hover:border-gray-300 transition-all duration-200 p-2">
@@ -342,7 +452,7 @@ export const CalendarSection: React.FC = () => {
                             </div>
                           )}
                           
-                          {dayAppointments.length === 0 && isCurrentMonth && (
+                          {dayAppointments.length === 0 && isCurrentMonth && hasSchedule && (
                             <button
                               onClick={() => handleNewAppointment(day, '09:00')}
                               className="w-full mt-2 p-1 text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 flex items-center justify-center space-x-1"
