@@ -34,6 +34,7 @@ export interface Appointment {
   id: number;
   service_id: number;
   client_id: number;
+  employee_id?: number;
   scheduled_at: string;
   ends_at: string;
   status: 'pending_deposit' | 'confirmed' | 'rescheduled' | 'cancelled' | 'no_show' | 'completed';
@@ -49,6 +50,7 @@ export interface Appointment {
   updated_at: string;
   service?: Service;
   client?: Client;
+  employee?: Employee;
 }
 
 export interface Employee {
@@ -62,6 +64,18 @@ export interface Employee {
   created_at: string;
   updated_at: string;
   services?: Service[];
+}
+
+export interface EmployeeSchedule {
+  id: number;
+  employee_id: number;
+  day_of_week: number; // 0=Domingo, 1=Lunes, ..., 6=Sábado
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface TimeSlot {
@@ -84,9 +98,10 @@ export interface TimeSlot {
 
 export interface CreateAppointmentRequest {
   service_id: number;
+  client_id?: number;
   employee_id?: number;
-  name: string;
-  whatsapp: string;
+  name?: string;
+  whatsapp?: string;
   email?: string;
   scheduled_at: string;
   special_requests?: string;
@@ -94,6 +109,7 @@ export interface CreateAppointmentRequest {
 
 export interface CreateTimeSlotRequest {
   service_id: number;
+  employee_id?: number;
   date: string;
   start_time: string;
   end_time: string;
@@ -125,4 +141,4 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
   errors?: Record<string, string[]>;
-} 
+}

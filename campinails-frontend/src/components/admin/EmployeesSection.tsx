@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { employeeService } from '../../services/api';
 import type { Employee } from '../../types';
-import { UserCheck, Plus, Mail, Phone, Star, Calendar, Settings, Edit, Trash2 } from 'lucide-react';
+import { UserCheck, Plus, Mail, Phone, Star, Calendar, Settings, Edit, Trash2, CalendarClock } from 'lucide-react';
 import { EmployeeForm } from '../forms/EmployeeForm';
 import { useToast } from '../../hooks/useToast';
 import { ToastContainer } from '../ui/Toast';
 
-export const EmployeesSection: React.FC = () => {
+interface EmployeesSectionProps {
+  onViewSchedule?: (employeeId: number) => void;
+}
+
+export const EmployeesSection: React.FC<EmployeesSectionProps> = ({ onViewSchedule }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,6 +60,14 @@ export const EmployeesSection: React.FC = () => {
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingEmployee(null);
+  };
+
+  const handleViewSchedule = (employeeId: number) => {
+    if (onViewSchedule) {
+      onViewSchedule(employeeId);
+    } else {
+      success('Navegando a horarios', 'Funcionalidad en desarrollo');
+    }
   };
 
   const filteredEmployees = employees.filter(employee =>
@@ -222,21 +234,29 @@ export const EmployeesSection: React.FC = () => {
                     {employee.is_active ? 'Activo' : 'Inactivo'}
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => handleViewSchedule(employee.id)}
+                      className="flex items-center justify-center space-x-1 py-2 px-3 bg-indigo-50 text-indigo-600 rounded-2xl hover:bg-indigo-100 transition-colors duration-200"
+                    >
+                      <CalendarClock className="w-4 h-4" />
+                      <span className="text-xs font-medium">Horarios</span>
+                    </button>
+                    
                     <button
                       onClick={() => handleEdit(employee)}
-                      className="flex-1 flex items-center justify-center space-x-2 py-2 px-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-colors duration-200"
+                      className="flex items-center justify-center space-x-1 py-2 px-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-colors duration-200"
                     >
                       <Edit className="w-4 h-4" />
-                      <span className="text-sm font-medium">Editar</span>
+                      <span className="text-xs font-medium">Editar</span>
                     </button>
                     
                     <button
                       onClick={() => handleDelete(employee.id)}
-                      className="flex-1 flex items-center justify-center space-x-2 py-2 px-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors duration-200"
+                      className="flex items-center justify-center space-x-1 py-2 px-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors duration-200"
                     >
                       <Trash2 className="w-4 h-4" />
-                      <span className="text-sm font-medium">Eliminar</span>
+                      <span className="text-xs font-medium">Eliminar</span>
                     </button>
                   </div>
                 </div>

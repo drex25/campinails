@@ -1,5 +1,17 @@
 import axios from 'axios';
-import type { AuthResponse, ApiResponse, Service, Client, Appointment, CreateAppointmentRequest, TimeSlot, CreateTimeSlotRequest, CreateTimeSlotsBulkRequest, Employee } from '../types';
+import type { 
+  AuthResponse, 
+  ApiResponse, 
+  Service, 
+  Client, 
+  Appointment, 
+  CreateAppointmentRequest, 
+  TimeSlot, 
+  CreateTimeSlotRequest, 
+  CreateTimeSlotsBulkRequest, 
+  Employee,
+  EmployeeSchedule
+} from '../types';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
@@ -119,7 +131,7 @@ export const clientService = {
 };
 
 export const appointmentService = {
-  async getAll(params?: { date?: string; status?: string; client_id?: number }) {
+  async getAll(params?: { date?: string; status?: string; client_id?: number; employee_id?: number }) {
     const response = await api.get<Appointment[]>('/appointments', { params });
     return response.data;
   },
@@ -177,9 +189,24 @@ export const employeeService = {
   },
 
   async getSchedule(id: number, startDate: string, endDate: string, serviceId?: number) {
-    const response = await api.get<{ employee: Employee; schedule: TimeSlot[] }>(`/employees/${id}/schedule`, {
+    const response = await api.get<{ employee: Employee; schedule: EmployeeSchedule[] }>(`/employees/${id}/schedule`, {
       params: { start_date: startDate, end_date: endDate, service_id: serviceId }
     });
+    return response.data;
+  },
+
+  async createSchedule(id: number, data: Partial<EmployeeSchedule>) {
+    const response = await api.post<EmployeeSchedule>(`/employees/${id}/schedules`, data);
+    return response.data;
+  },
+
+  async updateSchedule(employeeId: number, scheduleId: number, data: Partial<EmployeeSchedule>) {
+    const response = await api.put<EmployeeSchedule>(`/employees/${employeeId}/schedules/${scheduleId}`, data);
+    return response.data;
+  },
+
+  async deleteSchedule(employeeId: number, scheduleId: number) {
+    const response = await api.delete(`/employees/${employeeId}/schedules/${scheduleId}`);
     return response.data;
   },
 
@@ -247,4 +274,4 @@ export const timeSlotService = {
   },
 };
 
-export default api; 
+export default api;
