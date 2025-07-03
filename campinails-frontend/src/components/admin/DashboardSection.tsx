@@ -16,6 +16,8 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
+import { appointmentService, clientService, serviceService } from '../../services/api';
+import type { Appointment, Client, Service } from '../../types';
 
 interface DashboardStats {
   appointments: {
@@ -40,83 +42,103 @@ interface DashboardStats {
     active_clients: number;
     retention_rate: number;
   };
-  inventory: {
-    total_products: number;
-    low_stock_products: number;
-    out_of_stock_products: number;
-  };
 }
 
 export const DashboardSection: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentAppointments, setRecentAppointments] = useState<Appointment[]>([]);
   const [period, setPeriod] = useState('month');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    loadDashboardData();
   }, [period]);
 
-  const loadStats = async () => {
+  const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Simular carga de datos
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const [appointmentsData, clientsData] = await Promise.all([
+        appointmentService.getAll(),
+        clientService.getAll()
+      ]);
+
+      // Calcular estadísticas reales
+      const today = new Date();
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       
-      // Datos de ejemplo
+      const monthlyAppointments = appointmentsData.filter(apt => 
+        new Date(apt.created_at) >= startOfMonth
+      );
+
+      const todayAppointments = appointmentsData.filter(apt => 
+        new Date(apt.scheduled_at).toDateString() === today.toDateString()
+      );
+
+      const upcomingAppointments = appointmentsData.filter(apt => {
+        const aptDate = new Date(apt.scheduled_at);
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        return aptDate >= today && aptDate <= nextWeek && apt.status !== 'cancelled';
+      });
+
+      const completedAppointments = monthlyAppointments.filter(apt => apt.status === 'completed');
+      const cancelledAppointments = monthlyAppointments.filter(apt => 
+        apt.status === 'cancelled' || apt.status === 'no_show'
+      );
+
+      const totalRevenue = completedAppointments.reduce((sum, apt) => sum + apt.total_price, 0);
+      const depositRevenue = monthlyAppointments
+        .filter(apt => apt.deposit_paid)
+        .reduce((sum, apt) => sum + apt.deposit_amount, 0);
+      
+      const pendingRevenue = appointmentsData
+        .filter(apt => apt.status === 'confirmed' && !apt.deposit_paid)
+        .reduce((sum, apt) => sum + apt.deposit_amount, 0);
+
+      const newClients = clientsData.filter(client => 
+        new Date(client.created_at) >= startOfMonth
+      );
+
       setStats({
         appointments: {
-          total: 156,
-          confirmed: 142,
-          completed: 128,
-          cancelled: 14,
-          today: 8,
-          upcoming: 24,
-          completion_rate: 89.7,
-          cancellation_rate: 9.0
+          total: monthlyAppointments.length,
+          confirmed: monthlyAppointments.filter(apt => apt.status === 'confirmed').length,
+          completed: completedAppointments.length,
+          cancelled: cancelledAppointments.length,
+          today: todayAppointments.length,
+          upcoming: upcomingAppointments.length,
+          completion_rate: monthlyAppointments.length > 0 ? 
+            (completedAppointments.length / monthlyAppointments.length) * 100 : 0,
+          cancellation_rate: monthlyAppointments.length > 0 ? 
+            (cancelledAppointments.length / monthlyAppointments.length) * 100 : 0
         },
         revenue: {
-          total_revenue: 2840000,
-          deposit_revenue: 1420000,
-          pending_revenue: 340000,
-          avg_revenue_per_appointment: 18205
+          total_revenue: totalRevenue,
+          deposit_revenue: depositRevenue,
+          pending_revenue: pendingRevenue,
+          avg_revenue_per_appointment: completedAppointments.length > 0 ? 
+            totalRevenue / completedAppointments.length : 0
         },
         clients: {
-          total_clients: 89,
-          new_clients: 23,
-          active_clients: 67,
-          retention_rate: 75.3
-        },
-        inventory: {
-          total_products: 45,
-          low_stock_products: 3,
-          out_of_stock_products: 1
+          total_clients: clientsData.length,
+          new_clients: newClients.length,
+          active_clients: clientsData.filter(client => client.is_active).length,
+          retention_rate: 75.3 // Esto requeriría un cálculo más complejo
         }
       });
+
+      // Obtener turnos recientes
+      const recent = appointmentsData
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5);
+      setRecentAppointments(recent);
+
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error('Error loading dashboard data:', error);
     } finally {
       setIsLoading(false);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        {/* Loading skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-3xl p-6 shadow-lg animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-full"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!stats) return null;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-AR', {
@@ -164,6 +186,24 @@ export const DashboardSection: React.FC = () => {
       </div>
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-3xl p-6 shadow-lg animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-full"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) return null;
 
   return (
     <div className="space-y-8">
@@ -222,7 +262,7 @@ export const DashboardSection: React.FC = () => {
         
         <StatCard
           title="Tasa de Finalización"
-          value={`${stats.appointments.completion_rate}%`}
+          value={`${stats.appointments.completion_rate.toFixed(1)}%`}
           subtitle={`${stats.appointments.completed} completados`}
           icon={CheckCircle}
           color="bg-gradient-to-r from-orange-500 to-red-500"
@@ -256,73 +296,83 @@ export const DashboardSection: React.FC = () => {
 
         <div className="bg-white rounded-3xl p-6 shadow-lg">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Inventario</h3>
-            <Package className="w-5 h-5 text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-800">Ingresos</h3>
+            <DollarSign className="w-5 h-5 text-gray-400" />
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Total productos</span>
-              <span className="font-semibold text-gray-800">{stats.inventory.total_products}</span>
+              <span className="text-sm text-gray-600">Total del mes</span>
+              <span className="font-semibold text-gray-800">{formatCurrency(stats.revenue.total_revenue)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Stock bajo</span>
-              <span className="font-semibold text-yellow-600">{stats.inventory.low_stock_products}</span>
+              <span className="text-sm text-gray-600">Señas cobradas</span>
+              <span className="font-semibold text-green-600">{formatCurrency(stats.revenue.deposit_revenue)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Sin stock</span>
-              <span className="font-semibold text-red-600">{stats.inventory.out_of_stock_products}</span>
+              <span className="text-sm text-gray-600">Pendientes</span>
+              <span className="font-semibold text-yellow-600">{formatCurrency(stats.revenue.pending_revenue)}</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-3xl p-6 shadow-lg">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Retención</h3>
-            <TrendingUp className="w-5 h-5 text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-800">Clientes</h3>
+            <Users className="w-5 h-5 text-gray-400" />
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Tasa de retención</span>
-              <span className="font-semibold text-green-600">{stats.clients.retention_rate}%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Clientes totales</span>
+              <span className="text-sm text-gray-600">Total clientes</span>
               <span className="font-semibold text-gray-800">{stats.clients.total_clients}</span>
             </div>
             <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Nuevos este mes</span>
+              <span className="font-semibold text-blue-600">{stats.clients.new_clients}</span>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Promedio por turno</span>
-              <span className="font-semibold text-blue-600">{formatCurrency(stats.revenue.avg_revenue_per_appointment)}</span>
+              <span className="font-semibold text-purple-600">{formatCurrency(stats.revenue.avg_revenue_per_appointment)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Alerts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-3xl p-6 border border-yellow-200">
-          <div className="flex items-center space-x-3 mb-4">
-            <AlertTriangle className="w-6 h-6 text-yellow-600" />
-            <h3 className="text-lg font-semibold text-yellow-800">Alertas de Inventario</h3>
-          </div>
-          <p className="text-yellow-700 mb-4">
-            Tienes {stats.inventory.low_stock_products} productos con stock bajo y {stats.inventory.out_of_stock_products} sin stock.
-          </p>
-          <button className="bg-yellow-600 text-white px-4 py-2 rounded-2xl hover:bg-yellow-700 transition-colors duration-200">
-            Ver Inventario
-          </button>
-        </div>
-
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-3xl p-6 border border-blue-200">
-          <div className="flex items-center space-x-3 mb-4">
-            <Bell className="w-6 h-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-blue-800">Recordatorios</h3>
-          </div>
-          <p className="text-blue-700 mb-4">
-            Hay {stats.appointments.upcoming} turnos programados para los próximos 7 días.
-          </p>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-2xl hover:bg-blue-700 transition-colors duration-200">
-            Ver Calendario
-          </button>
+      {/* Recent Activity */}
+      <div className="bg-white rounded-3xl p-6 shadow-lg">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6">Actividad Reciente</h3>
+        
+        <div className="space-y-4">
+          {recentAppointments.map((appointment) => (
+            <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+              <div className="flex items-center space-x-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  appointment.status === 'confirmed' ? 'bg-green-100' :
+                  appointment.status === 'pending_deposit' ? 'bg-yellow-100' :
+                  appointment.status === 'completed' ? 'bg-blue-100' :
+                  'bg-gray-100'
+                }`}>
+                  {appointment.status === 'confirmed' && <CheckCircle className="w-5 h-5 text-green-600" />}
+                  {appointment.status === 'pending_deposit' && <Clock className="w-5 h-5 text-yellow-600" />}
+                  {appointment.status === 'completed' && <CheckCircle className="w-5 h-5 text-blue-600" />}
+                  {appointment.status === 'cancelled' && <XCircle className="w-5 h-5 text-red-600" />}
+                </div>
+                
+                <div>
+                  <div className="font-medium text-gray-800">{appointment.client?.name}</div>
+                  <div className="text-sm text-gray-600">{appointment.service?.name}</div>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <div className="font-semibold text-gray-800">
+                  {formatCurrency(appointment.total_price)}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {new Date(appointment.scheduled_at).toLocaleDateString('es-ES')}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
