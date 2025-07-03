@@ -256,6 +256,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
               <input
                 {...register('scheduled_at_time')}
                 type="time"
+                step="1800"
                 className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300"
               />
               {errors.scheduled_at_time && (
