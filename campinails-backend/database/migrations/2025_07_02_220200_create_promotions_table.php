@@ -20,8 +20,8 @@ return new class extends Migration
             $table->integer('usage_limit')->nullable(); // Límite de usos
             $table->integer('used_count')->default(0); // Veces usado
             $table->boolean('is_active')->default(true);
-            $table->timestamp('starts_at');
-            $table->timestamp('expires_at');
+            $table->timestamp('starts_at')->useCurrent(); // Usar timestamp actual como default
+            $table->timestamp('expires_at')->nullable(); // Permitir null para fechas futuras
             $table->json('applicable_days')->nullable(); // Días de la semana aplicables
             $table->json('applicable_services')->nullable(); // IDs de servicios aplicables
             $table->timestamps();
