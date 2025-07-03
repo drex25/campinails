@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { format, addDays, parseISO } from 'date-fns';
+import { format, addDays, parseISO, parse, addMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { appointmentService, serviceService, timeSlotService, employeeService } from '../services/api';
 import type { Service, TimeSlot, Employee, Appointment } from '../types';
@@ -142,8 +142,8 @@ export const AppointmentForm: React.FC = () => {
   };
 
   const onSubmit = async (data: AppointmentFormData) => {
-    if (!selectedSlot && !selectedDate) {
-      setError('Debes seleccionar un horario');
+    if (!selectedDate) {
+      setError('Debes seleccionar una fecha');
       return;
     }
 
@@ -151,15 +151,22 @@ export const AppointmentForm: React.FC = () => {
     setError('');
 
     try {
+      // Determinar la hora del turno
+      let scheduledTime = '09:00';
+      if (selectedSlot) {
+        scheduledTime = selectedSlot.start_time;
+      }
+
+      // Asegurarse de que la hora esté en formato HH:MM
+      const scheduledDateTime = `${selectedDate} ${scheduledTime}`;
+      
       const appointment = await appointmentService.create({
         service_id: data.service_id,
         employee_id: selectedEmployee?.id,
         name: data.name,
         whatsapp: data.whatsapp,
         email: data.email,
-        scheduled_at: selectedSlot 
-          ? `${selectedSlot.date} ${selectedSlot.start_time}`
-          : `${selectedDate} 09:00`,
+        scheduled_at: scheduledDateTime,
         special_requests: data.special_requests,
       });
       

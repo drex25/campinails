@@ -170,6 +170,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const onSubmit = async (data: any) => {
     setIsLoading(true);
     try {
+      // Asegurarse de que la hora esté en formato HH:MM
       const scheduledAt = `${data.scheduled_at_date} ${data.scheduled_at_time}`;
       
       if (appointment) {

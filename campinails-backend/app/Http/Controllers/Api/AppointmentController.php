@@ -78,7 +78,13 @@ class AppointmentController extends Controller
             ]
         );
 
+        // Asegurarse de que la hora esté en formato correcto (HH:MM:00)
         $start = Carbon::createFromFormat('Y-m-d H:i', $validated['scheduled_at']);
+        // Redondear a intervalos de 30 minutos
+        $minutes = $start->minute;
+        $roundedMinutes = $minutes - ($minutes % 30);
+        $start->setMinute($roundedMinutes)->setSecond(0);
+        
         $end = (clone $start)->addMinutes($service->duration_minutes);
 
         // Si se especifica un empleado, validar que pueda realizar el servicio
@@ -177,8 +183,16 @@ class AppointmentController extends Controller
                 return response()->json(['message' => 'Solo se puede reprogramar dos veces'], 422);
             }
             $service = $appointment->service;
+            
+            // Asegurarse de que la hora esté en formato correcto (HH:MM:00)
             $start = Carbon::createFromFormat('Y-m-d H:i', $validated['scheduled_at']);
+            // Redondear a intervalos de 30 minutos
+            $minutes = $start->minute;
+            $roundedMinutes = $minutes - ($minutes % 30);
+            $start->setMinute($roundedMinutes)->setSecond(0);
+            
             $end = (clone $start)->addMinutes($service->duration_minutes);
+            
             if ($start->isSunday() || $start->hour < 9 || $end->hour > 18 || ($end->hour === 18 && $end->minute > 0)) {
                 return response()->json(['message' => 'El turno debe ser de lunes a sábado entre 9:00 y 18:00'], 422);
             }
