@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/api';
 import { 
@@ -21,18 +21,18 @@ import {
   MessageSquare,
   CalendarClock
 } from 'lucide-react';
-import { DashboardSection } from '../components/admin/DashboardSection';
-import { CalendarSection } from '../components/admin/CalendarSection';
-import { ServicesSection } from '../components/admin/ServicesSection';
-import { AppointmentsSection } from '../components/admin/AppointmentsSection';
-import { ClientsSection } from '../components/admin/ClientsSection';
-import { EmployeesSection } from '../components/admin/EmployeesSection';
-import { EmployeeScheduleSection } from '../components/admin/EmployeeScheduleSection';
-import { NotificationsSection } from '../components/admin/NotificationsSection';
-import { PaymentsSection } from '../components/admin/PaymentsSection';
-import { PromotionsSection } from '../components/admin/PromotionsSection';
-import { InventorySection } from '../components/admin/InventorySection';
-import { ReportsSection } from '../components/admin/ReportsSection';
+import { DashboardSection } from './DashboardSection';
+import { CalendarSection } from './CalendarSection';
+import { ServicesSection } from './ServicesSection';
+import { AppointmentsSection } from './AppointmentsSection';
+import { ClientsSection } from './ClientsSection';
+import { EmployeesSection } from './EmployeesSection';
+import { EmployeeScheduleSection } from './EmployeeScheduleSection';
+import { NotificationsSection } from './NotificationsSection';
+import { PaymentsSection } from './PaymentsSection';
+import { PromotionsSection } from './PromotionsSection';
+import { InventorySection } from './InventorySection';
+import { ReportsSection } from './ReportsSection';
 
 type AdminSection = 
   | 'dashboard' 
