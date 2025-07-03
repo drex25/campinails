@@ -95,6 +95,12 @@ export const AppointmentForm: React.FC = () => {
     }
   }, [selectedService, selectedEmployee]);
 
+  useEffect(() => {
+    if (selectedDate) {
+      loadAvailableSlots();
+    }
+  }, [selectedDate]);
+
   const loadEmployeesForService = async (serviceId: number) => {
     try {
       const employeesData = await employeeService.getPublic({ service_id: serviceId, active: true });
@@ -136,7 +142,7 @@ export const AppointmentForm: React.FC = () => {
   };
 
   const onSubmit = async (data: AppointmentFormData) => {
-    if (!selectedSlot) {
+    if (!selectedSlot && !selectedDate) {
       setError('Debes seleccionar un horario');
       return;
     }
@@ -147,11 +153,13 @@ export const AppointmentForm: React.FC = () => {
     try {
       const appointment = await appointmentService.create({
         service_id: data.service_id,
-        employee_id: selectedSlot.employee_id,
+        employee_id: selectedEmployee?.id,
         name: data.name,
         whatsapp: data.whatsapp,
         email: data.email,
-        scheduled_at: `${selectedSlot.date} ${selectedSlot.start_time}`,
+        scheduled_at: selectedSlot 
+          ? `${selectedSlot.date} ${selectedSlot.start_time}`
+          : `${selectedDate} 09:00`,
         special_requests: data.special_requests,
       });
       
@@ -193,7 +201,7 @@ export const AppointmentForm: React.FC = () => {
 
   const canProceedFromService = selectedService !== null;
   const canProceedFromProfessional = true;
-  const canProceedFromDateTime = selectedDate && selectedSlot;
+  const canProceedFromDateTime = selectedDate && (selectedSlot || availableSlots.length === 0);
   const canProceedFromDetails = watch('name') && watch('whatsapp');
 
   const getStepProgress = () => {
@@ -476,7 +484,6 @@ export const AppointmentForm: React.FC = () => {
                           if (day.isAvailable) {
                             setSelectedDate(day.date);
                             setSelectedSlot(null);
-                            loadAvailableSlots();
                           }
                         }}
                       >
@@ -679,7 +686,7 @@ export const AppointmentForm: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Clock className="w-5 h-5 text-pink-600" />
-                        <span>{selectedSlot?.start_time}</span>
+                        <span>{selectedSlot?.start_time || "09:00"}</span>
                       </div>
                     </div>
                   </div>

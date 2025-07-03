@@ -18,16 +18,34 @@ class AppointmentController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Appointment::with(['service', 'client']);
+        $query = Appointment::with(['service', 'client', 'employee']);
+        
         if ($request->has('date')) {
-            $query->whereDate('scheduled_at', $request->date);
+            // Si date contiene una coma, es un rango de fechas
+            if (strpos($request->date, ',') !== false) {
+                list($startDate, $endDate) = explode(',', $request->date);
+                $query->whereBetween(DB::raw('DATE(scheduled_at)'), [$startDate, $endDate]);
+            } else {
+                $query->whereDate('scheduled_at', $request->date);
+            }
         }
+        
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
+        
         if ($request->has('client_id')) {
             $query->where('client_id', $request->client_id);
         }
+        
+        if ($request->has('employee_id')) {
+            $query->where('employee_id', $request->employee_id);
+        }
+        
+        if ($request->has('service_id')) {
+            $query->where('service_id', $request->service_id);
+        }
+        
         return response()->json($query->orderBy('scheduled_at')->get());
     }
 
@@ -127,7 +145,7 @@ class AppointmentController extends Controller
             'special_requests' => $validated['special_requests'] ?? null,
             'reference_photo' => $validated['reference_photo'] ?? null,
         ]);
-        return response()->json($appointment->load(['service', 'client']), 201);
+        return response()->json($appointment->load(['service', 'client', 'employee']), 201);
     }
 
     /**
@@ -135,7 +153,7 @@ class AppointmentController extends Controller
      */
     public function show(string $id)
     {
-        $appointment = Appointment::with(['service', 'client'])->findOrFail($id);
+        $appointment = Appointment::with(['service', 'client', 'employee'])->findOrFail($id);
         return response()->json($appointment);
     }
 
@@ -201,7 +219,7 @@ class AppointmentController extends Controller
             $appointment->reference_photo = $validated['reference_photo'];
         }
         $appointment->save();
-        return response()->json($appointment->load(['service', 'client']));
+        return response()->json($appointment->load(['service', 'client', 'employee']));
     }
 
     /**

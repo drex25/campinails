@@ -77,7 +77,7 @@ export const CalendarSection: React.FC = () => {
       }
       
       const params: any = {
-        date: startDate + ',' + endDate
+        date: `${startDate},${endDate}`
       };
       
       if (selectedService) {
@@ -89,6 +89,7 @@ export const CalendarSection: React.FC = () => {
       }
       
       const appointmentsData = await appointmentService.getAll(params);
+      console.log('Appointments loaded:', appointmentsData);
       setAppointments(appointmentsData);
     } catch (err) {
       console.error('Error cargando citas:', err);
