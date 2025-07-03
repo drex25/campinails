@@ -7,6 +7,7 @@ import { es } from 'date-fns/locale';
 import { appointmentService, serviceService, timeSlotService, employeeService } from '../services/api';
 import type { Service, TimeSlot, Employee } from '../types';
 import { Calendar, Clock, User, Phone, Mail, MessageSquare, Sparkles, CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Preloader } from './Preloader';
 
 const schema = yup.object({
   service_id: yup.number().required('Debes seleccionar un servicio'),
@@ -36,6 +37,7 @@ export const AppointmentForm: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
   const [availableDays, setAvailableDays] = useState<string[]>([]);
@@ -53,15 +55,22 @@ export const AppointmentForm: React.FC = () => {
   const watchedServiceId = watch('service_id');
 
   useEffect(() => {
-    const loadServices = async () => {
+    const loadInitialData = async () => {
+      setIsInitialLoading(true);
       try {
-        const servicesData = await serviceService.getPublic();
+        // Simular un tiempo mínimo de carga para mostrar el preloader
+        const [servicesData] = await Promise.all([
+          serviceService.getPublic(),
+          new Promise(resolve => setTimeout(resolve, 2000)) // Mínimo 2 segundos
+        ]);
         setServices(servicesData);
       } catch (error) {
         console.error('Error cargando servicios:', error);
+      } finally {
+        setIsInitialLoading(false);
       }
     };
-    loadServices();
+    loadInitialData();
   }, []);
 
   useEffect(() => {
@@ -199,6 +208,11 @@ export const AppointmentForm: React.FC = () => {
     
     return days;
   };
+
+  // Mostrar preloader mientras carga la data inicial
+  if (isInitialLoading) {
+    return <Preloader message="Cargando servicios disponibles..." />;
+  }
 
   if (isSuccess) {
     return (
