@@ -177,11 +177,15 @@ class TimeSlotController extends Controller
      */
     public function getAvailableSlots(Request $request)
     {
+        Log::info('getAvailableSlots called', $request->all());
+        
         $validated = $request->validate([
             'service_id' => 'required|exists:services,id',
             'date' => 'required|date|after_or_equal:today',
             'employee_id' => 'nullable|exists:employees,id',
         ]);
+
+        Log::info('Validation passed', $validated);
 
         $query = TimeSlot::with(['service', 'employee'])
             ->forService($validated['service_id'])
@@ -195,14 +199,19 @@ class TimeSlotController extends Controller
 
         $slots = $query->orderBy('start_time')->get();
 
-        // Si no hay slots creados, generar automáticamente basado en horarios de empleados
-        if ($slots->isEmpty()) {
-            $slots = $this->generateAvailableSlots(
-                $validated['service_id'],
-                $validated['date'],
-                $validated['employee_id'] ?? null
-            );
-        }
+        Log::info('Slots from database', ['count' => $slots->count()]);
+
+        // SIEMPRE generar slots basados en horarios actuales de empleados
+        // Esto asegura que los cambios en horarios se reflejen inmediatamente
+        Log::info('Generating virtual slots based on current employee schedules');
+        $virtualSlots = $this->generateAvailableSlots(
+            $validated['service_id'],
+            $validated['date'],
+            $validated['employee_id'] ?? null
+        );
+        Log::info('Virtual slots generated', ['count' => count($virtualSlots)]);
+        
+        $slots = $virtualSlots;
 
         return response()->json($slots);
     }
@@ -297,17 +306,40 @@ class TimeSlotController extends Controller
             'employee_id' => 'nullable|exists:employees,id',
         ]);
 
-        $query = \App\Models\TimeSlot::query()
-            ->where('service_id', $validated['service_id'])
-            ->whereBetween('date', [$validated['start_date'], $validated['end_date']])
-            ->where('status', 'available');
+        // Generar días disponibles basados en horarios actuales de empleados
+        $service = Service::findOrFail($validated['service_id']);
+        $startDate = Carbon::parse($validated['start_date']);
+        $endDate = Carbon::parse($validated['end_date']);
+        $availableDays = [];
+
+        // Obtener empleados que ofrecen este servicio
+        $employeesQuery = Employee::active()->whereHas('services', function ($q) use ($validated) {
+            $q->where('service_id', $validated['service_id']);
+        });
 
         if (isset($validated['employee_id'])) {
-            $query->where('employee_id', $validated['employee_id']);
+            $employeesQuery->where('id', $validated['employee_id']);
         }
 
-        $days = $query->pluck('date')->unique()->values();
+        $employees = $employeesQuery->get();
 
-        return response()->json($days);
+        for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
+            $dayOfWeek = $date->dayOfWeek;
+            
+            foreach ($employees as $employee) {
+                // Verificar si el empleado tiene horario para este día
+                $hasSchedule = $employee->schedules()
+                    ->active()
+                    ->forDay($dayOfWeek)
+                    ->exists();
+                
+                if ($hasSchedule) {
+                    $availableDays[] = $date->format('Y-m-d');
+                    break; // Si al menos un empleado tiene horario, el día está disponible
+                }
+            }
+        }
+
+        return response()->json(array_unique($availableDays));
     }
 }
