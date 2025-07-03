@@ -93,7 +93,7 @@ export const AdminPage: React.FC = () => {
       case 'clients':
         return <ClientsSection />;
       case 'employees':
-        return <EmployeesSection />;
+        return <EmployeesSection onViewSchedule={navigateToEmployeeSchedule} />;
       case 'employee_schedules':
         return <EmployeeScheduleSection employeeId={selectedEmployeeId} />;
       case 'notifications':

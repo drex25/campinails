@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { employeeService, serviceService } from '../../services/api';
+import { employeeService } from '../../services/api';
 import type { Employee, Service } from '../../types';
 import { Calendar, Clock, User, Plus, Save, X, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
@@ -16,10 +16,9 @@ interface EmployeeSchedule {
   notes?: string;
 }
 
-export const EmployeeScheduleSection: React.FC<{ employeeId?: number }> = ({ employeeId }) => {
+export const EmployeeScheduleSection: React.FC<{ employeeId?: number | null }> = ({ employeeId }) => {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
   const [schedules, setSchedules] = useState<EmployeeSchedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -32,7 +31,6 @@ export const EmployeeScheduleSection: React.FC<{ employeeId?: number }> = ({ emp
       setSelectedEmployeeId(employeeId);
     }
     loadEmployees();
-    loadServices();
   }, [employeeId]);
 
   useEffect(() => {
@@ -54,15 +52,6 @@ export const EmployeeScheduleSection: React.FC<{ employeeId?: number }> = ({ emp
     }
   };
 
-  const loadServices = async () => {
-    try {
-      const data = await serviceService.getAll();
-      setServices(data);
-    } catch (err) {
-      console.error('Error loading services:', err);
-    }
-  };
-
   const loadEmployeeDetails = async () => {
     if (!selectedEmployeeId) return;
     
@@ -71,7 +60,8 @@ export const EmployeeScheduleSection: React.FC<{ employeeId?: number }> = ({ emp
       const employeeData = await employeeService.getById(selectedEmployeeId);
       setEmployee(employeeData);
       
-      // Simular carga de horarios (esto debería venir de la API)
+      // Aquí deberíamos cargar los horarios del empleado desde la API
+      // Por ahora, usamos datos de ejemplo
       const mockSchedules: EmployeeSchedule[] = [
         {
           id: 1,
@@ -141,7 +131,8 @@ export const EmployeeScheduleSection: React.FC<{ employeeId?: number }> = ({ emp
   const handleDelete = async (id: number) => {
     if (window.confirm('¿Estás segura de que quieres eliminar este horario?')) {
       try {
-        // Simular eliminación
+        // Aquí deberíamos llamar a la API para eliminar el horario
+        // Por ahora, simulamos la eliminación
         setSchedules(schedules.filter(s => s.id !== id));
         success('Horario eliminado', 'El horario se eliminó correctamente');
       } catch (err) {
@@ -154,13 +145,15 @@ export const EmployeeScheduleSection: React.FC<{ employeeId?: number }> = ({ emp
   const handleFormSubmit = async (data: any) => {
     try {
       if (editingSchedule) {
-        // Simular actualización
+        // Aquí deberíamos llamar a la API para actualizar el horario
+        // Por ahora, simulamos la actualización
         setSchedules(schedules.map(s => 
           s.id === editingSchedule.id ? { ...s, ...data } : s
         ));
         success('Horario actualizado', 'El horario se actualizó correctamente');
       } else {
-        // Simular creación
+        // Aquí deberíamos llamar a la API para crear el horario
+        // Por ahora, simulamos la creación
         const newSchedule: EmployeeSchedule = {
           id: Math.max(0, ...schedules.map(s => s.id)) + 1,
           employee_id: selectedEmployeeId!,

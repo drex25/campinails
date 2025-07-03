@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay, parseISO, addMonths, subMonths, startOfMonth, endOfMonth, eachWeekOfInterval, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { timeSlotService, serviceService, employeeService } from '../../services/api';
-import type { TimeSlot, Service, Employee } from '../../types';
+import { appointmentService, serviceService, employeeService } from '../../services/api';
+import type { Appointment, Service, Employee } from '../../types';
 import { Calendar, ChevronLeft, ChevronRight, Plus, Filter, Search, Grid, List, User, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { CalendarSlotForm } from '../forms/CalendarSlotForm';
+import { AppointmentForm } from '../forms/AppointmentForm';
 import { useToast } from '../../hooks/useToast';
 import { ToastContainer } from '../ui/Toast';
 
@@ -15,10 +15,10 @@ export const CalendarSection: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showSlotForm, setShowSlotForm] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const { toasts, removeToast, success, error } = useToast();
@@ -36,18 +36,13 @@ export const CalendarSection: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedService || selectedEmployee) {
-      loadTimeSlots();
-    }
+    loadAppointments();
   }, [selectedService, selectedEmployee, currentDate, viewMode]);
 
   const loadServices = async () => {
     try {
       const servicesData = await serviceService.getAll();
       setServices(servicesData);
-      if (servicesData.length > 0 && !selectedService) {
-        setSelectedService(servicesData[0].id);
-      }
     } catch (err) {
       console.error('Error cargando servicios:', err);
       error('Error', 'No se pudieron cargar los servicios');
@@ -64,7 +59,7 @@ export const CalendarSection: React.FC = () => {
     }
   };
 
-  const loadTimeSlots = async () => {
+  const loadAppointments = async () => {
     setIsLoading(true);
     try {
       let startDate, endDate;
@@ -78,8 +73,7 @@ export const CalendarSection: React.FC = () => {
       }
       
       const params: any = {
-        start_date: startDate,
-        end_date: endDate
+        date: startDate + ',' + endDate
       };
       
       if (selectedService) {
@@ -90,11 +84,11 @@ export const CalendarSection: React.FC = () => {
         params.employee_id = selectedEmployee;
       }
       
-      const slots = await timeSlotService.getAll(params);
-      setTimeSlots(slots);
+      const appointmentsData = await appointmentService.getAll(params);
+      setAppointments(appointmentsData);
     } catch (err) {
-      console.error('Error cargando slots:', err);
-      error('Error', 'No se pudieron cargar los horarios');
+      console.error('Error cargando citas:', err);
+      error('Error', 'No se pudieron cargar las citas');
     } finally {
       setIsLoading(false);
     }
@@ -144,43 +138,71 @@ export const CalendarSection: React.FC = () => {
     });
   };
 
-  const getSlotForTimeAndDate = (time: string, date: Date) => {
-    return timeSlots.find(slot => 
-      slot.start_time === time && 
-      isSameDay(parseISO(slot.date), date)
-    );
+  const getAppointmentsForTimeAndDate = (time: string, date: Date) => {
+    return appointments.filter(appointment => {
+      const appointmentDate = new Date(appointment.scheduled_at);
+      const appointmentTime = format(appointmentDate, 'HH:mm');
+      return appointmentTime === time && isSameDay(appointmentDate, date);
+    });
   };
 
-  const getSlotStatusColor = (status: string) => {
+  const getAppointmentsForDate = (date: Date) => {
+    return appointments.filter(appointment => {
+      const appointmentDate = new Date(appointment.scheduled_at);
+      return isSameDay(appointmentDate, date);
+    });
+  };
+
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available': return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200';
-      case 'reserved': return 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200';
-      case 'blocked': return 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200';
-      case 'cancelled': return 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200';
+      case 'confirmed': return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200';
+      case 'pending_deposit': return 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200';
+      case 'completed': return 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200';
+      case 'no_show': return 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200';
+      case 'rescheduled': return 'bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200';
     }
   };
 
-  const handleSlotClick = (slot: TimeSlot | null, date?: Date, time?: string) => {
-    if (slot) {
-      setSelectedSlot(slot);
-      setSelectedDate(null);
-      setSelectedTime(null);
-    } else if (date && time) {
-      setSelectedSlot(null);
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'Confirmado';
+      case 'pending_deposit': return 'Pendiente';
+      case 'completed': return 'Completado';
+      case 'cancelled': return 'Cancelado';
+      case 'no_show': return 'No asistió';
+      case 'rescheduled': return 'Reprogramado';
+      default: return status;
+    }
+  };
+
+  const handleAppointmentClick = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setSelectedDate(null);
+    setSelectedTime(null);
+    setShowAppointmentForm(true);
+  };
+
+  const handleNewAppointment = (date?: Date, time?: string) => {
+    setSelectedAppointment(null);
+    if (date && time) {
       setSelectedDate(format(date, 'yyyy-MM-dd'));
       setSelectedTime(time);
+    } else {
+      setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+      setSelectedTime('09:00');
     }
-    setShowSlotForm(true);
+    setShowAppointmentForm(true);
   };
 
   const handleFormSuccess = () => {
-    loadTimeSlots();
-    setShowSlotForm(false);
-    setSelectedSlot(null);
+    loadAppointments();
+    setShowAppointmentForm(false);
+    setSelectedAppointment(null);
     setSelectedDate(null);
     setSelectedTime(null);
-    success('Horario guardado', 'El horario se guardó correctamente');
+    success('Turno guardado', 'El turno se guardó correctamente');
   };
 
   const renderWeekView = () => {
@@ -211,33 +233,36 @@ export const CalendarSection: React.FC = () => {
                   {time}
                 </td>
                 {getWeekDays().map(day => {
-                  const slot = getSlotForTimeAndDate(time, day);
+                  const appointmentsAtTime = getAppointmentsForTimeAndDate(time, day);
                   return (
                     <td key={`${time}-${day.toISOString()}`} className="p-2">
-                      {slot ? (
-                        <button
-                          onClick={() => handleSlotClick(slot)}
-                          className={`w-full p-3 text-xs rounded-2xl border transition-all duration-200 transform hover:scale-105 ${getSlotStatusColor(slot.status)}`}
-                        >
-                          <div className="font-semibold capitalize">
-                            {slot.status === 'reserved' ? 'Reservado' : 
-                             slot.status === 'available' ? 'Disponible' :
-                             slot.status === 'blocked' ? 'Bloqueado' : 'Cancelado'}
-                          </div>
-                          {slot.appointment && (
-                            <div className="text-xs opacity-75 mt-1 truncate">
-                              {slot.appointment.client?.name}
-                            </div>
-                          )}
-                          {slot.employee && (
-                            <div className="text-xs opacity-60 mt-1 truncate">
-                              {slot.employee.name}
-                            </div>
-                          )}
-                        </button>
+                      {appointmentsAtTime.length > 0 ? (
+                        <div className="space-y-1">
+                          {appointmentsAtTime.map(appointment => (
+                            <button
+                              key={appointment.id}
+                              onClick={() => handleAppointmentClick(appointment)}
+                              className={`w-full p-3 text-xs rounded-2xl border transition-all duration-200 transform hover:scale-105 ${getStatusColor(appointment.status)}`}
+                            >
+                              <div className="font-semibold capitalize">
+                                {getStatusText(appointment.status)}
+                              </div>
+                              {appointment.client && (
+                                <div className="text-xs opacity-75 mt-1 truncate">
+                                  {appointment.client.name}
+                                </div>
+                              )}
+                              {appointment.service && (
+                                <div className="text-xs opacity-60 mt-1 truncate">
+                                  {appointment.service.name}
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
                       ) : (
                         <button
-                          onClick={() => handleSlotClick(null, day, time)}
+                          onClick={() => handleNewAppointment(day, time)}
                           className="w-full p-3 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 group"
                         >
                           <Plus className="w-4 h-4 mx-auto group-hover:scale-110 transition-transform duration-200" />
@@ -276,15 +301,13 @@ export const CalendarSection: React.FC = () => {
                   const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                   const isToday = isSameDay(day, new Date());
                   
-                  // Obtener todos los slots para este día
-                  const daySlots = timeSlots.filter(slot => 
-                    isSameDay(parseISO(slot.date), day)
-                  );
+                  // Obtener todos los turnos para este día
+                  const dayAppointments = getAppointmentsForDate(day);
                   
-                  // Contar slots por estado
-                  const availableCount = daySlots.filter(slot => slot.status === 'available').length;
-                  const reservedCount = daySlots.filter(slot => slot.status === 'reserved').length;
-                  const blockedCount = daySlots.filter(slot => slot.status === 'blocked').length;
+                  // Contar turnos por estado
+                  const confirmedCount = dayAppointments.filter(apt => apt.status === 'confirmed').length;
+                  const pendingCount = dayAppointments.filter(apt => apt.status === 'pending_deposit').length;
+                  const cancelledCount = dayAppointments.filter(apt => apt.status === 'cancelled' || apt.status === 'no_show').length;
                   
                   return (
                     <td 
@@ -298,35 +321,54 @@ export const CalendarSection: React.FC = () => {
                         </div>
                         
                         <div className="space-y-1">
-                          {availableCount > 0 && (
+                          {confirmedCount > 0 && (
                             <div className="flex items-center space-x-1 text-xs">
                               <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                              <span className="text-gray-600">{availableCount} disponibles</span>
+                              <span className="text-gray-600">{confirmedCount} confirmados</span>
                             </div>
                           )}
                           
-                          {reservedCount > 0 && (
+                          {pendingCount > 0 && (
                             <div className="flex items-center space-x-1 text-xs">
-                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                              <span className="text-gray-600">{reservedCount} reservados</span>
+                              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                              <span className="text-gray-600">{pendingCount} pendientes</span>
                             </div>
                           )}
                           
-                          {blockedCount > 0 && (
+                          {cancelledCount > 0 && (
                             <div className="flex items-center space-x-1 text-xs">
                               <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                              <span className="text-gray-600">{blockedCount} bloqueados</span>
+                              <span className="text-gray-600">{cancelledCount} cancelados</span>
                             </div>
                           )}
                           
-                          {daySlots.length === 0 && isCurrentMonth && (
+                          {dayAppointments.length === 0 && isCurrentMonth && (
                             <button
-                              onClick={() => handleSlotClick(null, day, '09:00')}
+                              onClick={() => handleNewAppointment(day, '09:00')}
                               className="w-full mt-2 p-1 text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 flex items-center justify-center space-x-1"
                             >
                               <Plus className="w-3 h-3" />
-                              <span>Agregar</span>
+                              <span>Nuevo turno</span>
                             </button>
+                          )}
+                          
+                          {dayAppointments.length > 0 && (
+                            <div className="mt-2">
+                              {dayAppointments.slice(0, 2).map(appointment => (
+                                <button
+                                  key={appointment.id}
+                                  onClick={() => handleAppointmentClick(appointment)}
+                                  className={`w-full mb-1 p-1 text-xs rounded-lg ${getStatusColor(appointment.status)} truncate`}
+                                >
+                                  {format(new Date(appointment.scheduled_at), 'HH:mm')} - {appointment.client?.name.split(' ')[0]}
+                                </button>
+                              ))}
+                              {dayAppointments.length > 2 && (
+                                <div className="text-xs text-center text-gray-500">
+                                  +{dayAppointments.length - 2} más
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -341,7 +383,7 @@ export const CalendarSection: React.FC = () => {
     );
   };
 
-  if (isLoading && timeSlots.length === 0) {
+  if (isLoading && appointments.length === 0) {
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-3xl shadow-lg p-6">
@@ -366,17 +408,17 @@ export const CalendarSection: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-800">Calendario de Turnos</h2>
-                <p className="text-gray-600">Gestiona los horarios disponibles</p>
+                <p className="text-gray-600">Gestiona los turnos y citas</p>
               </div>
             </div>
 
             <div className="flex items-center space-x-3">
               <button 
-                onClick={() => setShowSlotForm(true)}
+                onClick={() => handleNewAppointment()}
                 className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 transform hover:scale-105 flex items-center space-x-2"
               >
                 <Plus className="w-4 h-4" />
-                <span>Crear Slots</span>
+                <span>Nuevo Turno</span>
               </button>
             </div>
           </div>
@@ -489,36 +531,40 @@ export const CalendarSection: React.FC = () => {
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-green-100 border border-green-200 rounded"></div>
-              <span className="text-sm text-gray-600">Disponible</span>
+              <span className="text-sm text-gray-600">Confirmado</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-yellow-100 border border-yellow-200 rounded"></div>
+              <span className="text-sm text-gray-600">Pendiente</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-blue-100 border border-blue-200 rounded"></div>
-              <span className="text-sm text-gray-600">Reservado</span>
+              <span className="text-sm text-gray-600">Completado</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-red-100 border border-red-200 rounded"></div>
-              <span className="text-sm text-gray-600">Bloqueado</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded"></div>
               <span className="text-sm text-gray-600">Cancelado</span>
             </div>
             <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-purple-100 border border-purple-200 rounded"></div>
+              <span className="text-sm text-gray-600">Reprogramado</span>
+            </div>
+            <div className="flex items-center space-x-2">
               <div className="w-4 h-4 border-2 border-dashed border-gray-300 rounded"></div>
-              <span className="text-sm text-gray-600">Sin slot creado</span>
+              <span className="text-sm text-gray-600">Disponible</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Calendar Slot Form */}
-      <CalendarSlotForm
-        isOpen={showSlotForm}
-        onClose={() => setShowSlotForm(false)}
+      {/* Appointment Form */}
+      <AppointmentForm
+        isOpen={showAppointmentForm}
+        onClose={() => setShowAppointmentForm(false)}
         onSuccess={handleFormSuccess}
-        slot={selectedSlot}
-        date={selectedDate}
-        time={selectedTime}
+        appointment={selectedAppointment}
+        initialDate={selectedDate}
+        initialTime={selectedTime}
         services={services}
         employees={employees}
       />

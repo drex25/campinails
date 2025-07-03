@@ -6,7 +6,11 @@ import { EmployeeForm } from '../forms/EmployeeForm';
 import { useToast } from '../../hooks/useToast';
 import { ToastContainer } from '../ui/Toast';
 
-export const EmployeesSection: React.FC = () => {
+interface EmployeesSectionProps {
+  onViewSchedule?: (employeeId: number) => void;
+}
+
+export const EmployeesSection: React.FC<EmployeesSectionProps> = ({ onViewSchedule }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,14 +62,12 @@ export const EmployeesSection: React.FC = () => {
     setEditingEmployee(null);
   };
 
-  const navigateToSchedule = (employeeId: number) => {
-    // Esta función se implementará para navegar a la sección de horarios
-    // Será manejada por el componente padre (AdminPage)
-    console.log('Navigate to schedule for employee:', employeeId);
-    
-    // Aquí podríamos emitir un evento o utilizar un contexto para comunicarnos con AdminPage
-    // Por ahora, solo mostramos un mensaje de éxito
-    success('Navegando a horarios', 'Funcionalidad en desarrollo');
+  const handleViewSchedule = (employeeId: number) => {
+    if (onViewSchedule) {
+      onViewSchedule(employeeId);
+    } else {
+      success('Navegando a horarios', 'Funcionalidad en desarrollo');
+    }
   };
 
   const filteredEmployees = employees.filter(employee =>
@@ -234,7 +236,7 @@ export const EmployeesSection: React.FC = () => {
 
                   <div className="grid grid-cols-3 gap-2">
                     <button
-                      onClick={() => navigateToSchedule(employee.id)}
+                      onClick={() => handleViewSchedule(employee.id)}
                       className="flex items-center justify-center space-x-1 py-2 px-3 bg-indigo-50 text-indigo-600 rounded-2xl hover:bg-indigo-100 transition-colors duration-200"
                     >
                       <CalendarClock className="w-4 h-4" />
