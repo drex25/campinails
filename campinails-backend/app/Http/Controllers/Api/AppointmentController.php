@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\Appointment;
 use App\Models\Service;
 use App\Models\Client;
+use App\Models\TimeSlot;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
@@ -54,6 +56,11 @@ class AppointmentController extends Controller
      */
     public function store(Request $request)
     {
+        Log::info('Appointment store called', [
+            'request_data' => $request->all(),
+            'timezone' => config('app.timezone')
+        ]);
+        
         $validated = $request->validate([
             'service_id' => 'required|exists:services,id',
             'scheduled_at' => 'required|date_format:Y-m-d H:i',
@@ -78,14 +85,34 @@ class AppointmentController extends Controller
             ]
         );
 
-        // Asegurarse de que la hora esté en formato correcto (HH:MM:00)
+        // Usar la hora exacta proporcionada sin redondear
         $start = Carbon::createFromFormat('Y-m-d H:i', $validated['scheduled_at']);
-        // Redondear a intervalos de 30 minutos
-        $minutes = $start->minute;
-        $roundedMinutes = $minutes - ($minutes % 30);
-        $start->setMinute($roundedMinutes)->setSecond(0);
+        $start->setSecond(0); // Solo asegurar que los segundos sean 0
         
         $end = (clone $start)->addMinutes($service->duration_minutes);
+        
+        Log::info('Fecha procesada', [
+            'original_scheduled_at' => $validated['scheduled_at'],
+            'start_parsed' => $start->format('Y-m-d H:i:s'),
+            'start_timezone' => $start->timezone->getName(),
+            'end_parsed' => $end->format('Y-m-d H:i:s'),
+            'service_duration' => $service->duration_minutes
+        ]);
+        
+        // Verificar que existe un slot disponible para este horario
+        $availableSlot = \App\Models\TimeSlot::where([
+            'service_id' => $service->id,
+            'employee_id' => $validated['employee_id'] ?? null,
+            'date' => $start->format('Y-m-d'),
+            'start_time' => $start->format('H:i'),
+            'status' => 'available'
+        ])->first();
+        
+        if (!$availableSlot) {
+            return response()->json([
+                'message' => 'El horario seleccionado no está disponible. Por favor, selecciona otro horario.'
+            ], 422);
+        }
 
         // Si se especifica un empleado, validar que pueda realizar el servicio
         if (isset($validated['employee_id'])) {
@@ -93,40 +120,6 @@ class AppointmentController extends Controller
             if (!$employee->isAvailableForService($service)) {
                 return response()->json(['message' => 'El empleado seleccionado no ofrece este servicio'], 422);
             }
-            
-            // Validar que el empleado esté disponible en ese horario
-            $dayOfWeek = $start->dayOfWeek;
-            $timeStr = $start->format('H:i');
-            
-            $availableSchedule = $employee->schedules()
-                ->active()
-                ->forDay($dayOfWeek)
-                ->where('start_time', '<=', $timeStr)
-                ->where('end_time', '>=', $end->format('H:i'))
-                ->first();
-                
-            if (!$availableSchedule) {
-                return response()->json(['message' => 'El empleado no está disponible en ese horario'], 422);
-            }
-            
-            // Validar que no haya otro turno con el mismo empleado en ese horario
-            $overlap = Appointment::where('status', '!=', 'cancelled')
-                ->where('employee_id', $validated['employee_id'])
-                ->where(function($q) use ($start, $end) {
-                    $q->whereBetween('scheduled_at', [$start, $end->subMinute()])
-                      ->orWhereBetween('ends_at', [$start->addMinute(), $end]);
-                })->exists();
-        } else {
-            // Validar solapamiento general de turnos
-            $overlap = Appointment::where('status', '!=', 'cancelled')
-                ->where(function($q) use ($start, $end) {
-                    $q->whereBetween('scheduled_at', [$start, $end->subMinute()])
-                      ->orWhereBetween('ends_at', [$start->addMinute(), $end]);
-                })->exists();
-        }
-        
-        if ($overlap) {
-            return response()->json(['message' => 'Ya existe un turno en ese horario'], 422);
         }
         
         // Validar anticipación mínima 24hs
@@ -151,6 +144,66 @@ class AppointmentController extends Controller
             'special_requests' => $validated['special_requests'] ?? null,
             'reference_photo' => $validated['reference_photo'] ?? null,
         ]);
+        
+        // Reservar el slot
+        $availableSlot->update([
+            'status' => 'reserved',
+            'appointment_id' => $appointment->id
+        ]);
+        
+        // Si requiere seña, procesar el pago automáticamente
+        if ($deposit_amount > 0) {
+            try {
+                $paymentService = app(\App\Services\PaymentService::class);
+                
+                $payment = \App\Models\Payment::create([
+                    'appointment_id' => $appointment->id,
+                    'amount' => $deposit_amount,
+                    'payment_method' => 'mercadopago',
+                    'payment_provider' => 'mercadopago',
+                    'metadata' => [
+                        'service_name' => $service->name,
+                        'client_name' => $client->name
+                    ],
+                    'status' => 'pending'
+                ]);
+                
+                $result = $paymentService->processPayment($payment);
+                
+                if ($result['success']) {
+                    $payment->update([
+                        'provider_payment_id' => $result['payment_id'],
+                        'status' => 'processing'
+                    ]);
+                    
+                    return response()->json([
+                        'appointment' => $appointment->load(['service', 'client', 'employee']),
+                        'payment_url' => $result['init_point'] ?? $result['sandbox_init_point'] ?? $result['checkout_url'],
+                        'payment_id' => $result['payment_id'],
+                        'requires_payment' => true
+                    ], 201);
+                } else {
+                    // Si falla el pago, eliminar el turno
+                    $appointment->delete();
+                    $availableSlot->update(['status' => 'available', 'appointment_id' => null]);
+                    
+                    return response()->json([
+                        'message' => 'Error al procesar el pago: ' . $result['error']
+                    ], 422);
+                }
+            } catch (\Exception $e) {
+                Log::error('Error processing payment for appointment: ' . $e->getMessage());
+                
+                // Si falla el pago, eliminar el turno
+                $appointment->delete();
+                $availableSlot->update(['status' => 'available', 'appointment_id' => null]);
+                
+                return response()->json([
+                    'message' => 'Error al procesar el pago. Por favor, intenta nuevamente.'
+                ], 422);
+            }
+        }
+        
         return response()->json($appointment->load(['service', 'client', 'employee']), 201);
     }
 

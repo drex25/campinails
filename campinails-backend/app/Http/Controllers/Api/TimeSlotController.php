@@ -201,19 +201,117 @@ class TimeSlotController extends Controller
 
         Log::info('Slots from database', ['count' => $slots->count()]);
 
-        // SIEMPRE generar slots basados en horarios actuales de empleados
-        // Esto asegura que los cambios en horarios se reflejen inmediatamente
-        Log::info('Generating virtual slots based on current employee schedules');
-        $virtualSlots = $this->generateAvailableSlots(
+        // Generar slots reales basados en horarios actuales de empleados
+        Log::info('Generating real slots based on current employee schedules');
+        $this->createSlotsFromSchedules(
             $validated['service_id'],
             $validated['date'],
             $validated['employee_id'] ?? null
         );
-        Log::info('Virtual slots generated', ['count' => count($virtualSlots)]);
         
-        $slots = $virtualSlots;
+        // Obtener los slots reales de la base de datos
+        $slots = $query->orderBy('start_time')->get();
+        Log::info('Real slots retrieved', [
+            'count' => $slots->count(),
+            'slots' => $slots->map(function($slot) {
+                return [
+                    'id' => $slot->id,
+                    'start_time' => $slot->start_time,
+                    'end_time' => $slot->end_time,
+                    'employee' => $slot->employee->name ?? 'N/A'
+                ];
+            })->toArray()
+        ]);
 
         return response()->json($slots);
+    }
+
+    /**
+     * Crear slots reales en la base de datos basados en horarios de empleados
+     */
+    private function createSlotsFromSchedules(int $serviceId, string $date, ?int $employeeId = null): void
+    {
+        $service = Service::findOrFail($serviceId);
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+
+        // Obtener empleados que ofrecen este servicio
+        $employeesQuery = Employee::active()->whereHas('services', function ($q) use ($serviceId) {
+            $q->where('service_id', $serviceId);
+        });
+
+        if ($employeeId) {
+            $employeesQuery->where('id', $employeeId);
+        }
+
+        $employees = $employeesQuery->get();
+
+        foreach ($employees as $employee) {
+            Log::info('Processing employee for slot creation', ['employee_id' => $employee->id, 'name' => $employee->name]);
+            
+            // Obtener horarios del empleado para este día
+            $schedules = $employee->schedules()
+                ->active()
+                ->forDay($dayOfWeek)
+                ->get();
+
+            Log::info('Employee schedules found for slot creation', [
+                'employee_id' => $employee->id,
+                'day_of_week' => $dayOfWeek,
+                'schedules_count' => $schedules->count(),
+                'schedules' => $schedules->map(fn($s) => [
+                    'start_time' => $s->start_time->format('H:i'),
+                    'end_time' => $s->end_time->format('H:i')
+                ])->toArray()
+            ]);
+
+            foreach ($schedules as $schedule) {
+                $generatedSlots = $schedule->generateSlotsForService($service, $date);
+                
+                Log::info('Generated slots for schedule creation', [
+                    'schedule_id' => $schedule->id,
+                    'schedule_time' => $schedule->start_time->format('H:i') . '-' . $schedule->end_time->format('H:i'),
+                    'service_duration' => $service->duration_minutes,
+                    'generated_slots' => $generatedSlots
+                ]);
+                
+                foreach ($generatedSlots as $slotData) {
+                    // Verificar si ya existe un slot para este empleado, servicio, fecha y hora
+                    $existingSlot = TimeSlot::where([
+                        'employee_id' => $employee->id,
+                        'service_id' => $serviceId,
+                        'date' => $date,
+                        'start_time' => $slotData['start_time'],
+                    ])->first();
+
+                    // Verificar si hay una cita existente en este horario
+                    $existingAppointment = \App\Models\Appointment::where('status', '!=', 'cancelled')
+                        ->where('employee_id', $employee->id)
+                        ->whereDate('scheduled_at', $date)
+                        ->whereTime('scheduled_at', $slotData['start_time'])
+                        ->exists();
+
+                    if (!$existingSlot && !$existingAppointment) {
+                        // Crear el slot real en la base de datos
+                        TimeSlot::create([
+                            'service_id' => $serviceId,
+                            'employee_id' => $employee->id,
+                            'date' => $date,
+                            'start_time' => $slotData['start_time'],
+                            'end_time' => $slotData['end_time'],
+                            'status' => 'available'
+                        ]);
+                        
+                        Log::info('Created real slot', [
+                            'service_id' => $serviceId,
+                            'employee_id' => $employee->id,
+                            'date' => $date,
+                            'start_time' => $slotData['start_time'],
+                            'end_time' => $slotData['end_time']
+                        ]);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -237,14 +335,33 @@ class TimeSlotController extends Controller
         $employees = $employeesQuery->get();
 
         foreach ($employees as $employee) {
+            Log::info('Processing employee', ['employee_id' => $employee->id, 'name' => $employee->name]);
+            
             // Obtener horarios del empleado para este día
             $schedules = $employee->schedules()
                 ->active()
                 ->forDay($dayOfWeek)
                 ->get();
 
+            Log::info('Employee schedules found', [
+                'employee_id' => $employee->id,
+                'day_of_week' => $dayOfWeek,
+                'schedules_count' => $schedules->count(),
+                'schedules' => $schedules->map(fn($s) => [
+                    'start_time' => $s->start_time->format('H:i'),
+                    'end_time' => $s->end_time->format('H:i')
+                ])->toArray()
+            ]);
+
             foreach ($schedules as $schedule) {
                 $generatedSlots = $schedule->generateSlotsForService($service, $date);
+                
+                Log::info('Generated slots for schedule', [
+                    'schedule_id' => $schedule->id,
+                    'schedule_time' => $schedule->start_time->format('H:i') . '-' . $schedule->end_time->format('H:i'),
+                    'service_duration' => $service->duration_minutes,
+                    'generated_slots' => $generatedSlots
+                ]);
                 
                 foreach ($generatedSlots as $slotData) {
                     // Verificar si ya existe un slot para este empleado, servicio, fecha y hora
@@ -255,7 +372,14 @@ class TimeSlotController extends Controller
                         'start_time' => $slotData['start_time'],
                     ])->first();
 
-                    if (!$existingSlot) {
+                    // Verificar si hay una cita existente en este horario
+                    $existingAppointment = \App\Models\Appointment::where('status', '!=', 'cancelled')
+                        ->where('employee_id', $employee->id)
+                        ->whereDate('scheduled_at', $date)
+                        ->whereTime('scheduled_at', $slotData['start_time'])
+                        ->exists();
+
+                    if (!$existingSlot && !$existingAppointment) {
                         $slots[] = [
                             'id' => null, // Slot virtual, no existe en BD
                             'service_id' => $serviceId,

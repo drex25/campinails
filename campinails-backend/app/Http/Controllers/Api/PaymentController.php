@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Payment;
 use App\Models\Appointment;
 use App\Services\PaymentService;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -40,6 +41,10 @@ class PaymentController extends Controller
 
     public function store(Request $request)
     {
+        Log::info('Payment store called', [
+            'request_data' => $request->all()
+        ]);
+        
         $validated = $request->validate([
             'appointment_id' => 'required|exists:appointments,id',
             'amount' => 'required|numeric|min:0',
@@ -54,7 +59,7 @@ class PaymentController extends Controller
             'appointment_id' => $appointment->id,
             'amount' => $validated['amount'],
             'payment_method' => $validated['payment_method'],
-            'payment_provider' => $validated['payment_provider'],
+            'payment_provider' => $validated['payment_provider'] ?? $validated['payment_method'],
             'metadata' => $validated['metadata'] ?? [],
             'status' => 'pending'
         ]);
@@ -68,10 +73,25 @@ class PaymentController extends Controller
                     'provider_payment_id' => $result['payment_id'],
                     'status' => 'processing'
                 ]);
+                
+                // Devolver la URL de pago para redirigir al usuario
+                return response()->json([
+                    'payment' => $payment->load('appointment'),
+                    'payment_url' => $result['init_point'] ?? $result['sandbox_init_point'] ?? $result['checkout_url'],
+                    'payment_id' => $result['payment_id']
+                ], 201);
             } else {
                 $payment->update(['status' => 'failed']);
                 return response()->json(['message' => $result['error']], 422);
             }
+        } elseif ($validated['payment_method'] === 'transfer') {
+            // Pago por transferencia se marca como pendiente
+            $payment->update([
+                'status' => 'pending',
+                'payment_provider' => 'manual'
+            ]);
+            
+            // El turno permanece como pending_deposit hasta que se confirme el pago
         } elseif ($validated['payment_method'] === 'cash') {
             // Pago en efectivo se marca como completado inmediatamente
             $payment->update([

@@ -6,6 +6,7 @@ import type {
   Client, 
   Appointment, 
   CreateAppointmentRequest, 
+  CreateAppointmentResponse,
   TimeSlot, 
   CreateTimeSlotRequest, 
   CreateTimeSlotsBulkRequest, 
@@ -142,7 +143,7 @@ export const appointmentService = {
   },
 
   async create(data: CreateAppointmentRequest) {
-    const response = await api.post<Appointment>('/appointments', data);
+    const response = await api.post<CreateAppointmentResponse>('/appointments', data);
     return response.data;
   },
 

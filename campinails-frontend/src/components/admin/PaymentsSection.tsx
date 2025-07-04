@@ -1,16 +1,87 @@
-import React, { useState } from 'react';
-import { CreditCard, DollarSign, TrendingUp, Plus, Filter, Search, Phone, Mail, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CreditCard, DollarSign, TrendingUp, Plus, Filter, Search, Phone, Mail, MessageSquare, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { PaymentForm } from '../forms/PaymentForm';
 import { useToast } from '../../hooks/useToast';
 import { ToastContainer } from '../ui/Toast';
+import { paymentService } from '../../services/api';
+import type { Payment } from '../../types';
 
 export const PaymentsSection: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
-  const { toasts, removeToast, success } = useToast();
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const { toasts, removeToast, success, error } = useToast();
+
+  useEffect(() => {
+    loadPayments();
+  }, [filterStatus]);
+
+  const loadPayments = async () => {
+    setIsLoading(true);
+    try {
+      const params: any = {};
+      if (filterStatus) {
+        params.status = filterStatus;
+      }
+      const paymentsData = await paymentService.getAll(params);
+      setPayments(paymentsData.data || paymentsData);
+    } catch (err) {
+      console.error('Error cargando pagos:', err);
+      error('Error', 'No se pudieron cargar los pagos');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmPayment = async (paymentId: number) => {
+    try {
+      await paymentService.confirm(paymentId);
+      success('Pago confirmado', 'El pago se confirmó correctamente');
+      loadPayments();
+    } catch (err: any) {
+      console.error('Error confirmando pago:', err);
+      error('Error', err.response?.data?.message || 'Error al confirmar el pago');
+    }
+  };
 
   const handleFormSuccess = () => {
     success('Pago registrado', 'El pago se registró correctamente');
     setShowForm(false);
+    loadPayments();
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'failed': return 'bg-red-100 text-red-800';
+      case 'refunded': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusText = (status: string) => {
+    switch (status) {
+      case 'completed': return 'Completado';
+      case 'pending': return 'Pendiente';
+      case 'processing': return 'Procesando';
+      case 'failed': return 'Fallido';
+      case 'refunded': return 'Reembolsado';
+      default: return status;
+    }
+  };
+
+  const getPaymentMethodText = (method: string) => {
+    switch (method) {
+      case 'mercadopago': return 'MercadoPago';
+      case 'stripe': return 'Tarjeta';
+      case 'transfer': return 'Transferencia';
+      case 'cash': return 'Efectivo';
+      case 'card': return 'Tarjeta';
+      default: return method;
+    }
   };
 
   return (
@@ -151,50 +222,89 @@ export const PaymentsSection: React.FC = () => {
                   className="pl-9 pr-4 py-2 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-300 transition-all duration-300 text-sm"
                 />
               </div>
-              <button className="p-2 rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors duration-200">
-                <Filter className="w-4 h-4 text-gray-600" />
-              </button>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-4 py-2 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-300 transition-all duration-300 text-sm"
+              >
+                <option value="">Todos los estados</option>
+                <option value="pending">Pendientes</option>
+                <option value="processing">Procesando</option>
+                <option value="completed">Completados</option>
+                <option value="failed">Fallidos</option>
+                <option value="refunded">Reembolsados</option>
+              </select>
             </div>
           </div>
 
           <div className="space-y-4">
-            {/* Placeholder payments */}
-            {[
-              { id: 1, client: 'María González', amount: 15000, method: 'Tarjeta', status: 'completed', date: '2024-01-15' },
-              { id: 2, client: 'Ana Rodríguez', amount: 20000, method: 'Efectivo', status: 'completed', date: '2024-01-15' },
-              { id: 3, client: 'Laura Fernández', amount: 12000, method: 'MercadoPago', status: 'pending', date: '2024-01-14' },
-              { id: 4, client: 'Sofía Martín', amount: 18000, method: 'Tarjeta', status: 'completed', date: '2024-01-14' },
-            ].map((payment) => (
-              <div key={payment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors duration-200">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    payment.status === 'completed' ? 'bg-green-100' : 'bg-yellow-100'
-                  }`}>
-                    <CreditCard className={`w-5 h-5 ${
-                      payment.status === 'completed' ? 'text-green-600' : 'text-yellow-600'
-                    }`} />
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mx-auto"></div>
+                <p className="text-gray-600 mt-2">Cargando pagos...</p>
+              </div>
+            ) : payments.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CreditCard className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500">No hay pagos para mostrar</p>
+              </div>
+            ) : (
+              payments.map((payment) => (
+                <div key={payment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors duration-200">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      payment.status === 'completed' ? 'bg-green-100' : 
+                      payment.status === 'pending' ? 'bg-yellow-100' :
+                      payment.status === 'processing' ? 'bg-blue-100' :
+                      'bg-gray-100'
+                    }`}>
+                      {payment.status === 'completed' ? (
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      ) : payment.status === 'pending' ? (
+                        <Clock className="w-5 h-5 text-yellow-600" />
+                      ) : payment.status === 'processing' ? (
+                        <AlertCircle className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <CreditCard className="w-5 h-5 text-gray-600" />
+                      )}
+                    </div>
+                    
+                    <div>
+                      <div className="font-medium text-gray-800">
+                        {payment.appointment?.client?.name || 'Cliente no disponible'}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {getPaymentMethodText(payment.payment_method)} • {new Date(payment.created_at).toLocaleDateString()}
+                      </div>
+                      {payment.appointment?.service && (
+                        <div className="text-xs text-gray-500">
+                          {payment.appointment.service.name}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
-                  <div>
-                    <div className="font-medium text-gray-800">{payment.client}</div>
-                    <div className="text-sm text-gray-600">{payment.method} • {payment.date}</div>
+                  <div className="text-right">
+                    <div className="font-semibold text-gray-800">
+                      ${payment.amount.toLocaleString()}
+                    </div>
+                    <div className={`text-xs px-2 py-1 rounded-full ${getPaymentStatusColor(payment.status)}`}>
+                      {getPaymentStatusText(payment.status)}
+                    </div>
+                    {payment.status === 'pending' && payment.payment_method === 'transfer' && (
+                      <button
+                        onClick={() => handleConfirmPayment(payment.id)}
+                        className="mt-2 px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition-colors"
+                      >
+                        Confirmar
+                      </button>
+                    )}
                   </div>
                 </div>
-                
-                <div className="text-right">
-                  <div className="font-semibold text-gray-800">
-                    ${payment.amount.toLocaleString()}
-                  </div>
-                  <div className={`text-xs px-2 py-1 rounded-full ${
-                    payment.status === 'completed' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {payment.status === 'completed' ? 'Completado' : 'Pendiente'}
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

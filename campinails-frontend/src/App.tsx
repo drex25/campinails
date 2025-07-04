@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { LoginPage } from './pages/LoginPage';
 import { AdminPage } from './pages/AdminPage';
 import { PublicAppointmentPage } from './pages/PublicAppointmentPage';
+import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
+import { PaymentFailurePage } from './pages/PaymentFailurePage';
+import { PaymentPendingPage } from './pages/PaymentPendingPage';
 import { authService } from './services/api';
 
 // Componente para proteger rutas
@@ -42,6 +45,9 @@ function App() {
           } 
         />
         <Route path="/turno" element={<PublicAppointmentPage />} />
+        <Route path="/payment/success" element={<PaymentSuccessPage />} />
+        <Route path="/payment/failure" element={<PaymentFailurePage />} />
+        <Route path="/payment/pending" element={<PaymentPendingPage />} />
         <Route path="/" element={<Navigate to="/turno" replace />} />
       </Routes>
     </Router>

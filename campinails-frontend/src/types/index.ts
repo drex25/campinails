@@ -107,6 +107,13 @@ export interface CreateAppointmentRequest {
   special_requests?: string;
 }
 
+export interface CreateAppointmentResponse {
+  appointment: Appointment;
+  payment_url?: string;
+  payment_id?: string;
+  requires_payment?: boolean;
+}
+
 export interface CreateTimeSlotRequest {
   service_id: number;
   employee_id?: number;
@@ -135,6 +142,24 @@ export interface LoginCredentials {
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+export interface Payment {
+  id: number;
+  appointment_id: number;
+  amount: number;
+  currency: string;
+  payment_method: 'card' | 'transfer' | 'cash' | 'mercadopago' | 'stripe';
+  payment_provider: string;
+  provider_payment_id?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
+  metadata?: Record<string, any>;
+  paid_at?: string;
+  refunded_at?: string;
+  refund_amount?: number;
+  created_at: string;
+  updated_at: string;
+  appointment?: Appointment;
 }
 
 export interface ApiResponse<T> {

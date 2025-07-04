@@ -47,32 +47,46 @@ class PaymentService
                         'number' => $appointment->client->whatsapp
                     ]
                 ],
-                'back_urls' => [
-                    'success' => config('app.frontend_url') . '/payment/success',
-                    'failure' => config('app.frontend_url') . '/payment/failure',
-                    'pending' => config('app.frontend_url') . '/payment/pending'
-                ],
-                'auto_return' => 'approved',
                 'external_reference' => $payment->id,
-                'notification_url' => config('app.url') . '/api/payments/webhook'
+                'back_urls' => [
+                    'success' => 'https://httpbin.org/status/200',
+                    'failure' => 'https://httpbin.org/status/400',
+                    'pending' => 'https://httpbin.org/status/200'
+                ],
+                'auto_return' => 'approved'
             ];
 
+            Log::info('MercadoPago preference data', $preferenceData);
+            Log::info('MercadoPago access token', ['token' => substr($accessToken, 0, 10) . '...']);
+            if (isset($preferenceData['back_urls'])) {
+                Log::info('MercadoPago back_urls', $preferenceData['back_urls']);
+            }
+            
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $accessToken,
                 'Content-Type' => 'application/json'
             ])->post('https://api.mercadopago.com/checkout/preferences', $preferenceData);
+            
+            Log::info('MercadoPago response status', ['status' => $response->status()]);
 
             if ($response->successful()) {
                 $data = $response->json();
+                Log::info('MercadoPago successful response', $data);
+                
+                $paymentUrl = $data['init_point'] ?? $data['sandbox_init_point'] ?? null;
+                Log::info('Payment URL extracted', ['url' => $paymentUrl]);
+                
                 return [
                     'success' => true,
                     'payment_id' => $data['id'],
                     'init_point' => $data['init_point'],
-                    'sandbox_init_point' => $data['sandbox_init_point']
+                    'sandbox_init_point' => $data['sandbox_init_point'],
+                    'checkout_url' => $paymentUrl
                 ];
             } else {
-                Log::error('MercadoPago error: ' . $response->body());
-                return ['success' => false, 'error' => 'Error al procesar el pago'];
+                $errorData = $response->json();
+                Log::error('MercadoPago error: ' . json_encode($errorData));
+                return ['success' => false, 'error' => 'Error al procesar el pago: ' . ($errorData['message'] ?? 'Error desconocido')];
             }
 
         } catch (\Exception $e) {
@@ -108,8 +122,8 @@ class PaymentService
                     ]
                 ],
                 'mode' => 'payment',
-                'success_url' => config('app.frontend_url') . '/payment/success?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => config('app.frontend_url') . '/payment/cancel',
+                'success_url' => 'http://localhost:5173/payment/success?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => 'http://localhost:5173/payment/cancel',
                 'metadata' => [
                     'payment_id' => $payment->id,
                     'appointment_id' => $appointment->id

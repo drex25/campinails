@@ -66,8 +66,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     resolver: yupResolver(schema),
     defaultValues: {
       service_id: 0,
-      client_id: null,
-      employee_id: null,
+      client_id: undefined,
+      employee_id: undefined,
       scheduled_at_date: '',
       scheduled_at_time: '',
       status: 'pending_deposit',
@@ -90,20 +90,20 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     if (appointment) {
       const appointmentDate = new Date(appointment.scheduled_at);
       
-      reset({
-        service_id: appointment.service_id,
-        client_id: appointment.client_id,
-        employee_id: appointment.employee_id || null,
-        scheduled_at_date: format(appointmentDate, 'yyyy-MM-dd'),
-        scheduled_at_time: format(appointmentDate, 'HH:mm'),
-        status: appointment.status,
-        name: appointment.client?.name || '',
-        whatsapp: appointment.client?.whatsapp || '',
-        email: appointment.client?.email || '',
-        special_requests: appointment.special_requests || '',
-      });
-      
-      setIsNewClient(false);
+              reset({
+          service_id: appointment.service_id,
+          client_id: appointment.client_id,
+          employee_id: appointment.employee_id || undefined,
+          scheduled_at_date: format(appointmentDate, 'yyyy-MM-dd'),
+          scheduled_at_time: format(appointmentDate, 'HH:mm'),
+          status: appointment.status,
+          name: appointment.client?.name || '',
+          whatsapp: appointment.client?.whatsapp || '',
+          email: appointment.client?.email || '',
+          special_requests: appointment.special_requests || '',
+        });
+        
+        setIsNewClient(false);
       
       // Calcular hora de fin
       const endDate = new Date(appointment.ends_at);
@@ -111,8 +111,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     } else {
       reset({
         service_id: services.length > 0 ? services[0].id : 0,
-        client_id: null,
-        employee_id: null,
+        client_id: undefined,
+        employee_id: undefined,
         scheduled_at_date: initialDate || format(new Date(), 'yyyy-MM-dd'),
         scheduled_at_time: initialTime || '09:00',
         status: 'pending_deposit',
@@ -177,16 +177,19 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         // Actualizar turno existente
         await appointmentService.update(appointment.id, {
           service_id: Number(data.service_id),
-          employee_id: data.employee_id ? Number(data.employee_id) : null,
+          employee_id: data.employee_id ? Number(data.employee_id) : undefined,
           scheduled_at: scheduledAt,
           status: data.status,
           special_requests: data.special_requests,
         });
+        
+        onSuccess();
       } else {
         // Crear nuevo turno
+        let response;
         if (isNewClient) {
           // Crear nuevo cliente y turno
-          await appointmentService.create({
+          response = await appointmentService.create({
             service_id: Number(data.service_id),
             employee_id: data.employee_id ? Number(data.employee_id) : undefined,
             name: data.name,
@@ -197,7 +200,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
           });
         } else {
           // Crear turno con cliente existente
-          await appointmentService.create({
+          response = await appointmentService.create({
             service_id: Number(data.service_id),
             employee_id: data.employee_id ? Number(data.employee_id) : undefined,
             client_id: Number(data.client_id),
@@ -205,11 +208,23 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             special_requests: data.special_requests || undefined,
           });
         }
+        
+        // Si requiere pago, redirigir a MercadoPago
+        console.log('Response from appointment creation:', response);
+        
+        if (response.requires_payment && response.payment_url) {
+          console.log('Opening payment URL:', response.payment_url);
+          window.open(response.payment_url, '_blank');
+          alert('Tu turno ha sido reservado. Por favor, completa el pago de la seña para confirmarlo.');
+        } else {
+          console.log('No payment required or no payment URL');
+        }
+        
+        onSuccess();
       }
-      
-      onSuccess();
     } catch (err: any) {
       console.error('Error saving appointment:', err);
+      alert(err.response?.data?.message || 'Error al crear el turno');
     } finally {
       setIsLoading(false);
     }
@@ -365,7 +380,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                   type="button"
                   onClick={() => {
                     setIsNewClient(true);
-                    setValue('client_id', null);
+                    setValue('client_id', undefined);
                   }}
                   className={`px-3 py-1 rounded-xl text-sm font-medium transition-colors duration-200 ${
                     isNewClient

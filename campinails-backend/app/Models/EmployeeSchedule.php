@@ -81,23 +81,20 @@ class EmployeeSchedule extends Model
     public function generateSlotsForService(Service $service, string $date): array
     {
         $slots = [];
-        $start = clone $this->start_time;
+        $currentTime = clone $this->start_time;
         $end = clone $this->end_time;
         $durationMinutes = $service->duration_minutes;
 
-        while ($start->addMinutes($durationMinutes)->lte($end)) {
-            $slotEnd = (clone $start)->addMinutes($durationMinutes);
+        while ($currentTime->addMinutes($durationMinutes)->lte($end)) {
+            $slotStart = (clone $currentTime)->subMinutes($durationMinutes);
+            $slotEnd = clone $currentTime;
             
-            if ($slotEnd->lte($end)) {
-                $slots[] = [
-                    'date' => $date,
-                    'start_time' => $start->format('H:i'),
-                    'end_time' => $slotEnd->format('H:i'),
-                    'duration_minutes' => $durationMinutes
-                ];
-            }
-            
-            $start->addMinutes($durationMinutes);
+            $slots[] = [
+                'date' => $date,
+                'start_time' => $slotStart->format('H:i'),
+                'end_time' => $slotEnd->format('H:i'),
+                'duration_minutes' => $durationMinutes
+            ];
         }
 
         return $slots;

@@ -147,18 +147,25 @@ export const AppointmentForm: React.FC = () => {
       return;
     }
 
+    if (!selectedSlot) {
+      setError('Debes seleccionar un horario');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
     try {
-      // Determinar la hora del turno
-      let scheduledTime = '09:00';
-      if (selectedSlot) {
-        scheduledTime = selectedSlot.start_time;
-      }
-
-      // Asegurarse de que la hora esté en formato HH:MM
+      // Usar la hora del slot seleccionado
+      const scheduledTime = selectedSlot.start_time;
       const scheduledDateTime = `${selectedDate} ${scheduledTime}`;
+      
+      console.log('Enviando cita con fecha/hora:', {
+        selectedDate,
+        selectedSlot: selectedSlot.start_time,
+        scheduledDateTime,
+        employee: selectedEmployee?.name
+      });
       
       const appointment = await appointmentService.create({
         service_id: data.service_id,
@@ -168,6 +175,12 @@ export const AppointmentForm: React.FC = () => {
         email: data.email,
         scheduled_at: scheduledDateTime,
         special_requests: data.special_requests,
+      });
+      
+      console.log('Cita creada:', {
+        id: appointment.id,
+        scheduled_at: appointment.scheduled_at,
+        employee: appointment.employee?.name
       });
       
       setCreatedAppointment(appointment);

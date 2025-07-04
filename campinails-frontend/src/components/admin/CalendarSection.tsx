@@ -174,11 +174,30 @@ export const CalendarSection: React.FC = () => {
   };
 
   const handlePrevious = () => {
+    let newDate;
     if (viewMode === 'week') {
-      setCurrentDate(subWeeks(currentDate, 1));
+      newDate = subWeeks(currentDate, 1);
     } else {
-      setCurrentDate(subMonths(currentDate, 1));
+      newDate = subMonths(currentDate, 1);
     }
+    
+    // Verificar que la nueva fecha no sea completamente pasada
+    const today = new Date();
+    if (viewMode === 'week') {
+      const weekEnd = endOfWeek(newDate, { weekStartsOn: 1 });
+      if (weekEnd < today) {
+        error('Error', 'No se puede navegar a fechas pasadas');
+        return;
+      }
+    } else {
+      const monthEnd = endOfMonth(newDate);
+      if (monthEnd < today) {
+        error('Error', 'No se puede navegar a fechas pasadas');
+        return;
+      }
+    }
+    
+    setCurrentDate(newDate);
   };
 
   const handleNext = () => {
@@ -279,6 +298,25 @@ export const CalendarSection: React.FC = () => {
     }
   };
 
+  // Función helper para verificar si una fecha es pasada
+  const isPastDate = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Solo comparar fecha, no hora
+    return date < today;
+  };
+
+  // Función helper para verificar si una fecha y hora es pasada
+  const isPastDateTime = (date: Date, time?: string) => {
+    const now = new Date();
+    if (time) {
+      const [hours, minutes] = time.split(':').map(Number);
+      const dateTime = new Date(date);
+      dateTime.setHours(hours, minutes, 0, 0);
+      return dateTime < now;
+    }
+    return isPastDate(date);
+  };
+
   const handleAppointmentClick = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setSelectedDate(null);
@@ -287,6 +325,12 @@ export const CalendarSection: React.FC = () => {
   };
 
   const handleNewAppointment = (date?: Date, time?: string) => {
+    // Verificar si la fecha es pasada
+    if (date && date < new Date()) {
+      error('Error', 'No se pueden crear turnos en fechas pasadas');
+      return;
+    }
+    
     setSelectedAppointment(null);
     if (date && time) {
       setSelectedDate(format(date, 'yyyy-MM-dd'));
@@ -316,18 +360,21 @@ export const CalendarSection: React.FC = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="p-4 text-left text-sm font-semibold text-gray-600 w-24">Hora</th>
-              {weekDays.map(day => (
-                <th key={day.toISOString()} className="p-4 text-center text-sm font-semibold text-gray-600 min-w-32">
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-gray-400 uppercase">
-                      {format(day, 'EEE', { locale: es })}
-                    </span>
-                    <span className="text-lg font-bold text-gray-800 mt-1">
-                      {format(day, 'dd')}
-                    </span>
-                  </div>
-                </th>
-              ))}
+                              {weekDays.map(day => {
+                  const isPast = isPastDate(day);
+                  return (
+                    <th key={day.toISOString()} className={`p-4 text-center text-sm font-semibold min-w-32 ${isPast ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <div className="flex flex-col items-center">
+                        <span className={`text-xs uppercase ${isPast ? 'text-gray-300' : 'text-gray-400'}`}>
+                          {format(day, 'EEE', { locale: es })}
+                        </span>
+                        <span className={`text-lg font-bold mt-1 ${isPast ? 'text-gray-400' : 'text-gray-800'}`}>
+                          {format(day, 'dd')}
+                        </span>
+                      </div>
+                    </th>
+                  );
+                })}
             </tr>
           </thead>
           <tbody>
@@ -340,9 +387,10 @@ export const CalendarSection: React.FC = () => {
                   const dayOfWeek = day.getDay() === 0 ? 7 : day.getDay(); // Convertir 0 (domingo) a 7
                   const isInSchedule = isTimeInEmployeeSchedule(time, dayOfWeek);
                   const appointmentsAtTime = getAppointmentsForTimeAndDate(time, day);
+                  const isPast = isPastDateTime(day, time);
                   
                   return (
-                    <td key={`${time}-${day.toISOString()}`} className="p-2">
+                    <td key={`${time}-${day.toISOString()}`} className={`p-2 ${isPast ? 'opacity-60' : ''}`}>
                       {appointmentsAtTime.length > 0 ? (
                         <div className="space-y-1">
                           {appointmentsAtTime.map(appointment => (
@@ -368,12 +416,17 @@ export const CalendarSection: React.FC = () => {
                           ))}
                         </div>
                       ) : isInSchedule ? (
-                        <button
-                          onClick={() => handleNewAppointment(day, time)}
-                          className="w-full p-3 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 group"
-                        >
-                          <Plus className="w-4 h-4 mx-auto group-hover:scale-110 transition-transform duration-200" />
-                        </button>
+                        // Solo mostrar botón de nuevo turno si la fecha no es pasada
+                        day >= new Date() ? (
+                          <button
+                            onClick={() => handleNewAppointment(day, time)}
+                            className="w-full p-3 text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 group"
+                          >
+                            <Plus className="w-4 h-4 mx-auto group-hover:scale-110 transition-transform duration-200" />
+                          </button>
+                        ) : (
+                          <div className="w-full h-full p-3 bg-gray-50 opacity-30 rounded-2xl"></div>
+                        )
                       ) : (
                         <div className="w-full h-full p-3 bg-gray-50 opacity-50 rounded-2xl"></div>
                       )}
@@ -409,6 +462,7 @@ export const CalendarSection: React.FC = () => {
                 {week.map(day => {
                   const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                   const isToday = isSameDay(day, new Date());
+                  const isPast = isPastDate(day);
                   const dayOfWeek = day.getDay() === 0 ? 7 : day.getDay(); // Convertir 0 (domingo) a 7
                   const hasSchedule = hasEmployeeScheduleForDay(dayOfWeek);
                   
@@ -423,11 +477,11 @@ export const CalendarSection: React.FC = () => {
                   return (
                     <td 
                       key={day.toISOString()} 
-                      className={`p-1 align-top ${isCurrentMonth ? '' : 'bg-gray-50 opacity-50'} ${!hasSchedule && selectedEmployee ? 'opacity-30' : ''}`}
+                      className={`p-1 align-top ${isCurrentMonth ? '' : 'bg-gray-50 opacity-50'} ${!hasSchedule && selectedEmployee ? 'opacity-30' : ''} ${isPast ? 'opacity-60' : ''}`}
                       style={{ height: '120px' }}
                     >
-                      <div className="h-full rounded-xl border border-gray-100 hover:border-gray-300 transition-all duration-200 p-2">
-                        <div className={`text-right mb-2 ${isToday ? 'font-bold text-pink-600' : 'text-gray-700'}`}>
+                      <div className={`h-full rounded-xl border transition-all duration-200 p-2 ${isPast ? 'border-gray-200 bg-gray-50' : 'border-gray-100 hover:border-gray-300'}`}>
+                        <div className={`text-right mb-2 ${isToday ? 'font-bold text-pink-600' : isPast ? 'text-gray-400' : 'text-gray-700'}`}>
                           {format(day, 'd')}
                         </div>
                         
@@ -453,7 +507,7 @@ export const CalendarSection: React.FC = () => {
                             </div>
                           )}
                           
-                          {dayAppointments.length === 0 && isCurrentMonth && hasSchedule && (
+                          {dayAppointments.length === 0 && isCurrentMonth && hasSchedule && day >= new Date() && (
                             <button
                               onClick={() => handleNewAppointment(day, '09:00')}
                               className="w-full mt-2 p-1 text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 flex items-center justify-center space-x-1"
@@ -619,6 +673,19 @@ export const CalendarSection: React.FC = () => {
                     format(currentDate, 'MMMM yyyy', { locale: es })
                   )}
                 </div>
+                {/* Indicador de fechas pasadas */}
+                {viewMode === 'week' && isPastDate(startOfWeek(currentDate, { weekStartsOn: 1 })) && (
+                  <div className="text-xs text-orange-600 mt-1 flex items-center justify-center space-x-1">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>Viendo fechas pasadas</span>
+                  </div>
+                )}
+                {viewMode === 'month' && isPastDate(startOfMonth(currentDate)) && (
+                  <div className="text-xs text-orange-600 mt-1 flex items-center justify-center space-x-1">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>Viendo fechas pasadas</span>
+                  </div>
+                )}
               </div>
               
               <button
@@ -663,6 +730,10 @@ export const CalendarSection: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 border-2 border-dashed border-gray-300 rounded"></div>
               <span className="text-sm text-gray-600">Disponible</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded opacity-60"></div>
+              <span className="text-sm text-gray-600">Fecha pasada</span>
             </div>
           </div>
         </div>
