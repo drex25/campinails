@@ -31,6 +31,10 @@ Route::post('/promotions/validate', [PromotionController::class, 'validate']);
 // Webhook para pagos (sin autenticación)
 Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
 
+// Datos de prueba para pagos (sin autenticación)
+Route::get('/payments/test-data', [PaymentController::class, 'getTestData']);
+Route::get('/payments/{id}/status', [PaymentController::class, 'checkPaymentStatus']);
+
 // Rutas protegidas solo para admin
 Route::middleware('auth:sanctum')->group(function () {
     // Dashboard y estadísticas

@@ -307,6 +307,12 @@ export const paymentService = {
     return response.data;
   },
 
+  async processAppointmentPayment(appointmentId: number, data: { payment_method: string }) {
+    const response = await api.post(`/appointments/${appointmentId}/process-payment`, data);
+    console.log('Respuesta de procesamiento de pago:', response.data);
+    return response.data;
+  },
+
   async confirm(id: number) {
     const response = await api.post(`/payments/${id}/confirm`);
     return response.data;

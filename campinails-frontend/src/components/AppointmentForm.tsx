@@ -45,6 +45,7 @@ export const AppointmentForm: React.FC = () => {
   const [availableDays, setAvailableDays] = useState<string[]>([]);
   const [createdAppointment, setCreatedAppointment] = useState<Appointment | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPendingMessage, setShowPendingMessage] = useState(false);
 
   const {
     register,
@@ -180,22 +181,29 @@ export const AppointmentForm: React.FC = () => {
         special_requests: data.special_requests,
       });
       
-      console.log('Cita creada:', {
-        id: appointment.id,
-        scheduled_at: appointment.scheduled_at || appointment.appointment?.scheduled_at,
-        employee: appointment.employee?.name,
-        requires_payment: selectedService?.requires_deposit && selectedService?.deposit_percentage > 0
-      });
-      
       // Asegurarse de que tenemos el objeto de cita correcto
       const appointmentData = appointment.appointment || appointment;
-      setCreatedAppointment(appointmentData);
       
-      // Si el servicio requiere seña, mostrar modal de pago
-      if (paymentRequired && (appointmentData.deposit_amount > 0)) {
-        setShowPaymentModal(true);
+      // Verificar que tenemos un appointment válido
+      if ('id' in appointmentData) {
+        setCreatedAppointment(appointmentData as Appointment);
+        
+        console.log('Cita creada:', {
+          id: appointmentData.id,
+          scheduled_at: appointmentData.scheduled_at,
+          employee: appointmentData.employee?.name,
+          requires_payment: selectedService?.requires_deposit && selectedService?.deposit_percentage > 0
+        });
+        
+        // Si el servicio requiere seña, mostrar modal de pago
+        if (paymentRequired && (appointmentData.deposit_amount > 0)) {
+          setShowPaymentModal(true);
+        } else {
+          setIsSuccess(true);
+        }
       } else {
-        setIsSuccess(true);
+        // Si no tenemos un appointment válido, mostrar error
+        setError('Error al crear el turno: datos inválidos');
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error al crear el turno');
@@ -204,9 +212,16 @@ export const AppointmentForm: React.FC = () => {
     }
   };
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (paymentMethod?: string) => {
     setShowPaymentModal(false);
-    setIsSuccess(true);
+    
+    // Solo mostrar éxito inmediato para pagos que no requieren confirmación externa
+    if (paymentMethod === 'cash' || paymentMethod === 'transfer') {
+      setIsSuccess(true);
+    } else {
+      // Para pagos online, mostrar mensaje de pendiente
+      setShowPendingMessage(true);
+    }
   };
 
   const nextStep = () => {
@@ -279,6 +294,37 @@ export const AppointmentForm: React.FC = () => {
                 : 'Tu solicitud de turno ha sido enviada exitosamente. Te contactaremos por WhatsApp para confirmar y coordinar la seña.'
               }
             </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-2xl font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105"
+            >
+              Solicitar Otro Turno
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (showPendingMessage) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-6">
+              <Clock className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">
+              ¡Pago en Proceso! ⏳
+            </h2>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              Tu turno ha sido reservado y el pago está siendo procesado. Te enviaremos un WhatsApp cuando confirmemos la recepción del pago.
+            </p>
+            <div className="bg-yellow-50 rounded-2xl p-4 mb-6">
+              <p className="text-yellow-800 font-medium">
+                Si no completaste el pago, puedes intentarlo nuevamente o contactarnos por WhatsApp.
+              </p>
+            </div>
             <button
               onClick={() => window.location.reload()}
               className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 rounded-2xl font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105"

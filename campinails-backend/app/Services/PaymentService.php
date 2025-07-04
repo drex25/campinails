@@ -47,14 +47,19 @@ class PaymentService
                         'number' => $appointment->client->whatsapp
                     ]
                 ],
-                'external_reference' => $payment->id,
-                'back_urls' => [
-                    'success' => 'https://httpbin.org/status/200',
-                    'failure' => 'https://httpbin.org/status/400',
-                    'pending' => 'https://httpbin.org/status/200'
-                ],
-                'auto_return' => 'approved'
+                'external_reference' => $payment->id
             ];
+
+            // Solo agregar URLs de callback si estamos en producción
+            if (config('app.env') === 'production') {
+                $preferenceData['back_urls'] = [
+                    'success' => config('app.url') . '/payment/success',
+                    'failure' => config('app.url') . '/payment/failure',
+                    'pending' => config('app.url') . '/payment/pending'
+                ];
+                $preferenceData['notification_url'] = config('app.url') . '/api/payments/webhook';
+                $preferenceData['auto_return'] = 'approved';
+            }
 
             Log::info('MercadoPago preference data', $preferenceData);
             Log::info('MercadoPago access token', ['token' => substr($accessToken, 0, 10) . '...']);
@@ -190,38 +195,24 @@ class PaymentService
     private function handleMercadoPagoWebhook(array $data)
     {
         try {
-            if (isset($data['type']) && $data['type'] === 'payment') {
-                $paymentId = $data['data']['id'];
-                
-                $accessToken = config('services.mercadopago.access_token');
-                $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $accessToken
-                ])->get("https://api.mercadopago.com/v1/payments/{$paymentId}");
-
-                if ($response->successful()) {
-                    $paymentData = $response->json();
-                    $externalReference = $paymentData['external_reference'];
-                    
-                    $payment = Payment::find($externalReference);
-                    
-                    if ($payment) {
-                        if ($paymentData['status'] === 'approved') {
-                            $payment->update([
-                                'status' => 'completed',
-                                'paid_at' => now(),
-                                'provider_payment_id' => $paymentId
-                            ]);
-                            
-                            $payment->appointment->update([
-                                'deposit_paid' => true,
-                                'deposit_paid_at' => now(),
-                                'status' => 'confirmed'
-                            ]);
-                            
-                            app(NotificationService::class)->sendPaymentConfirmation($payment);
-                        }
-                    }
+            Log::info('MercadoPago webhook received', $data);
+            
+            // MercadoPago puede enviar diferentes tipos de notificaciones
+            if (isset($data['type'])) {
+                switch ($data['type']) {
+                    case 'payment':
+                        return $this->handleMercadoPagoPayment($data);
+                    case 'preference':
+                        return $this->handleMercadoPagoPreference($data);
+                    default:
+                        Log::info('MercadoPago webhook type not handled', ['type' => $data['type']]);
+                        return ['success' => true];
                 }
+            }
+            
+            // También puede recibir datos directamente del pago
+            if (isset($data['data']['id'])) {
+                return $this->handleMercadoPagoPayment($data);
             }
             
             return ['success' => true];
@@ -229,6 +220,98 @@ class PaymentService
             Log::error('MercadoPago webhook error: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    private function handleMercadoPagoPayment(array $data)
+    {
+        $paymentId = $data['data']['id'] ?? $data['id'];
+        
+        if (!$paymentId) {
+            Log::error('MercadoPago webhook: No payment ID found');
+            return ['success' => false, 'error' => 'No payment ID found'];
+        }
+        
+        $accessToken = config('services.mercadopago.access_token');
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $accessToken
+        ])->get("https://api.mercadopago.com/v1/payments/{$paymentId}");
+
+        if ($response->successful()) {
+            $paymentData = $response->json();
+            Log::info('MercadoPago payment data', $paymentData);
+            
+            $externalReference = $paymentData['external_reference'];
+            
+            if (!$externalReference) {
+                Log::error('MercadoPago webhook: No external reference found');
+                return ['success' => false, 'error' => 'No external reference found'];
+            }
+            
+            $payment = Payment::find($externalReference);
+            
+            if (!$payment) {
+                Log::error('MercadoPago webhook: Payment not found', ['external_reference' => $externalReference]);
+                return ['success' => false, 'error' => 'Payment not found'];
+            }
+            
+            $status = $paymentData['status'];
+            Log::info('MercadoPago payment status', ['payment_id' => $payment->id, 'status' => $status]);
+            
+            switch ($status) {
+                case 'approved':
+                    $payment->update([
+                        'status' => 'completed',
+                        'paid_at' => now(),
+                        'provider_payment_id' => $paymentId
+                    ]);
+                    
+                    $payment->appointment->update([
+                        'deposit_paid' => true,
+                        'deposit_paid_at' => now(),
+                        'status' => 'confirmed'
+                    ]);
+                    
+                    // Enviar notificación de confirmación
+                    try {
+                        app(NotificationService::class)->sendPaymentConfirmation($payment);
+                    } catch (\Exception $e) {
+                        Log::error('Error sending payment confirmation: ' . $e->getMessage());
+                    }
+                    
+                    Log::info('MercadoPago payment completed', ['payment_id' => $payment->id]);
+                    break;
+                    
+                case 'rejected':
+                    $payment->update([
+                        'status' => 'failed',
+                        'provider_payment_id' => $paymentId
+                    ]);
+                    Log::info('MercadoPago payment rejected', ['payment_id' => $payment->id]);
+                    break;
+                    
+                case 'pending':
+                    $payment->update([
+                        'status' => 'processing',
+                        'provider_payment_id' => $paymentId
+                    ]);
+                    Log::info('MercadoPago payment pending', ['payment_id' => $payment->id]);
+                    break;
+                    
+                default:
+                    Log::info('MercadoPago payment status not handled', ['status' => $status]);
+            }
+            
+            return ['success' => true];
+        } else {
+            Log::error('MercadoPago API error', ['response' => $response->body()]);
+            return ['success' => false, 'error' => 'API error'];
+        }
+    }
+
+    private function handleMercadoPagoPreference(array $data)
+    {
+        Log::info('MercadoPago preference webhook received', $data);
+        return ['success' => true];
     }
 
     private function handleStripeWebhook(array $data)

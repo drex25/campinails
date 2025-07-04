@@ -151,60 +151,15 @@ class AppointmentController extends Controller
             'appointment_id' => $appointment->id
         ]);
         
-        // Si requiere seña, procesar el pago automáticamente
+        // Si requiere seña, devolver el appointment con requires_payment = true
         if ($deposit_amount > 0) {
-            try {
-                $paymentService = app(\App\Services\PaymentService::class);
-                
-                $payment = \App\Models\Payment::create([
-                    'appointment_id' => $appointment->id,
-                    'amount' => $deposit_amount,
-                    'payment_method' => 'pending',
-                    'payment_provider' => 'pending',
-                    'metadata' => [
-                        'service_name' => $service->name,
-                        'client_name' => $client->name
-                    ],
-                    'status' => 'pending'
-                ]);
-                
-                $result = $paymentService->processPayment($payment);
-                
-                if ($result['success']) {
-                    $payment->update([
-                        'provider_payment_id' => $result['payment_id'],
-                        'status' => 'processing'
-                    ]);
-                    
-                    return response()->json([
-                        'appointment' => $appointment->load(['service', 'client', 'employee']),
-                        'payment_url' => $result['init_point'] ?? $result['sandbox_init_point'] ?? $result['checkout_url'],
-                        'payment_id' => $result['payment_id'],
-                        'requires_payment' => true
-                    ], 201);
-                } else {
-                    // Si falla el pago, eliminar el turno
-                    $appointment->delete();
-                    $availableSlot->update(['status' => 'available', 'appointment_id' => null]);
-                    
-                    return response()->json([
-                        'message' => 'Error al procesar el pago: ' . $result['error']
-                    ], 422);
-                }
-            } catch (\Exception $e) {
-                Log::error('Error processing payment for appointment: ' . $e->getMessage());
-                
-                // Si falla el pago, eliminar el turno
-                $appointment->delete();
-                $availableSlot->update(['status' => 'available', 'appointment_id' => null]);
-                
-                return response()->json([
-                    'message' => 'Error al procesar el pago. Por favor, intenta nuevamente.'
-                ], 422);
-            }
+            return response()->json([
+                'appointment' => $appointment->load(['service', 'client', 'employee']),
+                'requires_payment' => true
+            ], 201);
         }
         
-        // Si no requiere seña o si ocurrió algún error, devolver solo el turno
+        // Si no requiere seña, devolver solo el turno
         return response()->json($appointment->load(['service', 'client', 'employee']), 201);
     }
 
@@ -241,76 +196,88 @@ class AppointmentController extends Controller
             ]);
             
             if (in_array($validated['payment_method'], ['mercadopago', 'stripe'])) {
-                $result = $paymentService->processPayment($payment);
-                
-                if ($result['success']) {
-                    $payment->update([
-                        'provider_payment_id' => $result['payment_id'],
-                        'status' => 'processing'
-                    ]);
+                try {
+                    $result = $paymentService->processPayment($payment);
+                    
+                    if ($result['success']) {
+                        $payment->update([
+                            'provider_payment_id' => $result['payment_id'],
+                            'status' => 'processing'
+                        ]);
+                        
+                        return response()->json([
+                            'appointment' => $appointment->load(['service', 'client', 'employee']),
+                            'payment_url' => $result['init_point'] ?? $result['sandbox_init_point'] ?? $result['checkout_url'],
+                            'payment_id' => $result['payment_id'],
+                            'requires_payment' => true
+                        ], 201);
+                    } else {
+                        // Si falla el pago, eliminar el pago pero mantener el turno
+                        $payment->delete();
+                        
+                        return response()->json([
+                            'message' => 'Error al procesar el pago: ' . $result['error']
+                        ], 422);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error processing payment: ' . $e->getMessage());
+                    
+                    // Si falla el pago, eliminar el pago pero mantener el turno
+                    $payment->delete();
                     
                     return response()->json([
-                        'appointment' => $appointment->load(['service', 'client', 'employee']),
-                        'payment_url' => $result['init_point'] ?? $result['sandbox_init_point'] ?? $result['checkout_url'],
-                        'payment_id' => $result['payment_id'],
-                        'requires_payment' => true
-                    ], 201);
-                } else {
-                    // Si falla el pago, eliminar el turno
-                    $appointment->delete();
-                    $availableSlot->update(['status' => 'available', 'appointment_id' => null]);
-                    
-                    return response()->json([
-                        'message' => 'Error al procesar el pago: ' . $result['error']
+                        'message' => 'Error al procesar el pago. Por favor, intenta nuevamente.'
                     ], 422);
                 }
-            } catch (\Exception $e) {
-                Log::error('Error processing payment: ' . $e->getMessage());
+            } else if ($validated['payment_method'] === 'transfer') {
+                // Para transferencia, marcar como pendiente
+                $payment->update([
+                    'status' => 'processing',
+                    'payment_provider' => 'manual'
+                ]);
                 
-                // Si falla el pago, eliminar el pago pero mantener el turno
-                $payment->delete();
+                // El turno permanece como pending_deposit hasta que se confirme el pago
+                $appointment->update([
+                    'admin_notes' => 'Pago por transferencia pendiente de confirmación.'
+                ]);
                 
                 return response()->json([
-                    'message' => 'Error al procesar el pago. Por favor, intenta nuevamente.'
-                ], 422);
+                    'message' => 'Pago por transferencia registrado. Pendiente de confirmación.',
+                    'appointment' => $appointment->load(['service', 'client', 'employee']),
+                ], 201);
+            } else if ($validated['payment_method'] === 'cash') {
+                // Para efectivo, marcar como pendiente
+                $payment->update([
+                    'status' => 'processing',
+                    'payment_provider' => 'manual'
+                ]);
+                
+                // El turno permanece como pending_deposit hasta que se confirme el pago en el local
+                $appointment->update([
+                    'admin_notes' => 'Cliente pagará en efectivo al llegar al local.'
+                ]);
+                
+                return response()->json([
+                    'message' => 'Pago en efectivo registrado. Se confirmará al llegar al local.',
+                    'appointment' => $appointment->load(['service', 'client', 'employee']),
+                ], 201);
             }
-        } else if ($validated['payment_method'] === 'transfer') {
-            // Para transferencia, marcar como pendiente
-            $payment->update([
-                'status' => 'processing',
-                'payment_provider' => 'manual'
-            ]);
-            
-            // El turno permanece como pending_deposit hasta que se confirme el pago
-            $appointment->update([
-                'admin_notes' => 'Pago por transferencia pendiente de confirmación.'
-            ]);
             
             return response()->json([
-                'message' => 'Pago por transferencia registrado. Pendiente de confirmación.',
-                'appointment' => $appointment->load(['service', 'client', 'employee']),
-            ], 201);
-        } else if ($validated['payment_method'] === 'cash') {
-            // Para efectivo, marcar como pendiente
-            $payment->update([
-                'status' => 'processing',
-                'payment_provider' => 'manual'
-            ]);
+                'message' => 'Método de pago no soportado'
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error processing payment: ' . $e->getMessage());
             
-            // El turno permanece como pending_deposit hasta que se confirme el pago en el local
-            $appointment->update([
-                'admin_notes' => 'Cliente pagará en efectivo al llegar al local.'
-            ]);
+            // Si falla el pago, eliminar el pago pero mantener el turno
+            if (isset($payment)) {
+                $payment->delete();
+            }
             
             return response()->json([
-                'message' => 'Pago en efectivo registrado. Se confirmará al llegar al local.',
-                'appointment' => $appointment->load(['service', 'client', 'employee']),
-            ], 201);
+                'message' => 'Error al procesar el pago. Por favor, intenta nuevamente.'
+            ], 422);
         }
-        
-        return response()->json([
-            'message' => 'Método de pago no soportado'
-        ], 422);
     }
 
     /**
@@ -408,7 +375,7 @@ class AppointmentController extends Controller
                 $notificationService = app(\App\Services\NotificationService::class);
                 $notificationService->sendAppointmentConfirmation($appointment);
             } catch (\Exception $e) {
-                \Log::error('Error enviando notificación de confirmación: ' . $e->getMessage());
+                Log::error('Error enviando notificación de confirmación: ' . $e->getMessage());
             }
         }
         
@@ -418,7 +385,7 @@ class AppointmentController extends Controller
                 $notificationService = app(\App\Services\NotificationService::class);
                 $notificationService->sendAppointmentCancellation($appointment);
             } catch (\Exception $e) {
-                \Log::error('Error enviando notificación de cancelación: ' . $e->getMessage());
+                Log::error('Error enviando notificación de cancelación: ' . $e->getMessage());
             }
         }
         

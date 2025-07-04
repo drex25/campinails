@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Appointment;
 use App\Services\PaymentService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class PaymentController extends Controller
 {
@@ -181,14 +182,149 @@ class PaymentController extends Controller
     public function webhook(Request $request)
     {
         // Webhook para recibir notificaciones de los proveedores de pago
-        $provider = $request->header('X-Payment-Provider', 'unknown');
+        Log::info('Payment webhook received', [
+            'headers' => $request->headers->all(),
+            'data' => $request->all()
+        ]);
+        
+        // MercadoPago no envía un header específico, pero podemos detectarlo por el formato de datos
+        $provider = 'mercadopago'; // Por defecto asumimos MercadoPago
         
         $result = $this->paymentService->handleWebhook($provider, $request->all());
         
         if ($result['success']) {
             return response()->json(['status' => 'ok']);
         } else {
+            Log::error('Webhook error', ['error' => $result['error']]);
             return response()->json(['error' => $result['error']], 400);
         }
+    }
+
+    public function getTestData()
+    {
+        return response()->json([
+            'mercadopago' => [
+                'cards' => [
+                    [
+                        'number' => '5031 7557 3453 0604',
+                        'cvv' => '123',
+                        'expiry' => '11/30',
+                        'description' => 'Mastercard (aprobada)'
+                    ],
+                    [
+                        'number' => '4509 9535 6623 3704',
+                        'cvv' => '123',
+                        'expiry' => '11/30',
+                        'description' => 'Visa (aprobada)'
+                    ],
+                    [
+                        'number' => '3711 803032 57522',
+                        'cvv' => '1234',
+                        'expiry' => '11/30',
+                        'description' => 'American Express (aprobada)'
+                    ],
+                    [
+                        'number' => '5287 3383 1025 3304',
+                        'cvv' => '123',
+                        'expiry' => '11/30',
+                        'description' => 'Mastercard Débito (aprobada)'
+                    ],
+                    [
+                        'number' => '4002 7686 9439 5619',
+                        'cvv' => '123',
+                        'expiry' => '11/30',
+                        'description' => 'Visa Débito (aprobada)'
+                    ]
+                ],
+                'dni' => '12345678',
+                'email' => 'test@test.com',
+                'payment_states' => [
+                    [
+                        'state' => 'APRO',
+                        'description' => 'Pago aprobado',
+                        'dni' => '12345678'
+                    ],
+                    [
+                        'state' => 'OTHE',
+                        'description' => 'Rechazado por error general',
+                        'dni' => '12345678'
+                    ],
+                    [
+                        'state' => 'CONT',
+                        'description' => 'Pendiente de pago',
+                        'dni' => null
+                    ],
+                    [
+                        'state' => 'CALL',
+                        'description' => 'Rechazado con validación para autorizar',
+                        'dni' => null
+                    ],
+                    [
+                        'state' => 'FUND',
+                        'description' => 'Rechazado por importe insuficiente',
+                        'dni' => null
+                    ],
+                    [
+                        'state' => 'SECU',
+                        'description' => 'Rechazado por código de seguridad inválido',
+                        'dni' => null
+                    ],
+                    [
+                        'state' => 'EXPI',
+                        'description' => 'Rechazado por fecha de vencimiento',
+                        'dni' => null
+                    ],
+                    [
+                        'state' => 'FORM',
+                        'description' => 'Rechazado por error de formulario',
+                        'dni' => null
+                    ]
+                ]
+            ]
+        ]);
+    }
+
+    public function checkPaymentStatus(string $id)
+    {
+        $payment = Payment::findOrFail($id);
+        
+        if ($payment->payment_provider === 'mercadopago' && $payment->provider_payment_id) {
+            $accessToken = config('services.mercadopago.access_token');
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $accessToken
+            ])->get("https://api.mercadopago.com/v1/payments/{$payment->provider_payment_id}");
+
+            if ($response->successful()) {
+                $paymentData = $response->json();
+                
+                // Si estamos en desarrollo y el pago está aprobado, actualizar automáticamente
+                if (config('app.env') === 'local' && $paymentData['status'] === 'approved' && $payment->status !== 'completed') {
+                    $payment->update([
+                        'status' => 'completed',
+                        'paid_at' => now()
+                    ]);
+                    
+                    $payment->appointment->update([
+                        'deposit_paid' => true,
+                        'deposit_paid_at' => now(),
+                        'status' => 'confirmed'
+                    ]);
+                    
+                    Log::info('Payment auto-completed in development', [
+                        'payment_id' => $payment->id,
+                        'appointment_id' => $payment->appointment->id
+                    ]);
+                }
+                
+                return response()->json([
+                    'payment' => $payment->fresh(),
+                    'mercadopago_status' => $paymentData['status'],
+                    'mercadopago_data' => $paymentData,
+                    'auto_updated' => config('app.env') === 'local' && $paymentData['status'] === 'approved'
+                ]);
+            }
+        }
+        
+        return response()->json(['payment' => $payment]);
     }
 }

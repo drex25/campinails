@@ -8,7 +8,7 @@ interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: Appointment;
-  onPaymentSuccess: () => void;
+  onPaymentSuccess: (paymentMethod?: string) => void;
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -79,36 +79,33 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
       // Para MercadoPago y Stripe, procesar pago automático
       const paymentData = {
-        appointment_id: appointment.id,
-        amount: appointment.deposit_amount || 0,
-        payment_method: selectedMethod,
-        payment_provider: selectedMethod,
-        metadata: {
-          service_name: appointment.service?.name,
-          client_name: appointment.client?.name
-        }
+        payment_method: selectedMethod
       };
 
       console.log('Datos del pago a enviar:', paymentData);
-      const result = await paymentService.create(paymentData);
+      const result = await paymentService.processAppointmentPayment(appointment.id, paymentData);
       
       if (selectedMethod === 'mercadopago') {
         // Redirigir a MercadoPago
-        setPaymentUrl(result.init_point || result.sandbox_init_point);
-        window.open(result.init_point || result.sandbox_init_point, '_blank');
+        const paymentUrl = result.payment_url || result.init_point || result.sandbox_init_point;
+        setPaymentUrl(paymentUrl);
+        window.open(paymentUrl, '_blank');
+        
+        // Mostrar mensaje informativo para MercadoPago (NO éxito, solo información)
+        setShowSuccess(true);
+        // NO cerrar el modal automáticamente - el usuario debe cerrarlo manualmente
+        // o esperar la confirmación del pago
       } else if (selectedMethod === 'stripe') {
         // Redirigir a Stripe
-        setPaymentUrl(result.checkout_url);
-        window.open(result.checkout_url, '_blank');
+        const paymentUrl = result.payment_url || result.checkout_url;
+        setPaymentUrl(paymentUrl);
+        window.open(paymentUrl, '_blank');
+        
+        // Mostrar mensaje informativo para Stripe (NO éxito, solo información)
+        setShowSuccess(true);
+        // NO cerrar el modal automáticamente - el usuario debe cerrarlo manualmente
+        // o esperar la confirmación del pago
       }
-      
-      // Mostrar mensaje de éxito temporal
-      setShowSuccess(true);
-      setTimeout(() => {
-        onPaymentSuccess();
-        onClose();
-        setShowSuccess(false);
-      }, 3000);
       
     } catch (err: any) {
       console.error('Error processing payment:', err);
@@ -125,22 +122,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     try {
       // Crear pago pendiente para efectivo
       const paymentData = {
-        appointment_id: appointment.id,
-        amount: appointment.deposit_amount || 0,
-        payment_method: 'cash',
-        payment_provider: 'manual',
-        metadata: {
-          service_name: appointment.service?.name,
-          client_name: appointment.client?.name,
-          payment_note: 'Pago en efectivo a confirmar en el local'
-        }
+        payment_method: 'cash'
       };
 
-      await paymentService.create(paymentData);
+      await paymentService.processAppointmentPayment(appointment.id, paymentData);
       
       setShowSuccess(true);
       setTimeout(() => {
-        onPaymentSuccess();
+        onPaymentSuccess('cash');
         onClose();
         setShowSuccess(false);
       }, 3000);
@@ -167,28 +156,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       
       // Crear pago pendiente para transferencia
       const paymentData = {
-        appointment_id: appointment.id,
-        amount: appointment.deposit_amount || 0,
-        payment_method: 'transfer',
-        payment_provider: 'manual',
-        metadata: {
-          service_name: appointment.service?.name,
-          client_name: appointment.client?.name,
-          transfer_info: {
-            cbu: '0000003100010000000001',
-            alias: 'CAMPI.NAILS.MP',
-            holder: 'Campi Nails',
-            bank: 'Mercado Pago'
-          },
-          has_receipt: true
-        }
+        payment_method: 'transfer'
       };
 
-      await paymentService.create(paymentData);
+      await paymentService.processAppointmentPayment(appointment.id, paymentData);
       
       setShowSuccess(true);
       setTimeout(() => {
-        onPaymentSuccess();
+        onPaymentSuccess('transfer');
         onClose();
         setShowSuccess(false);
       }, 3000);
@@ -236,38 +211,65 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   if (showSuccess) {
     const isTransfer = selectedMethod === 'transfer';
     const isCash = selectedMethod === 'cash';
+    const isMercadoPago = selectedMethod === 'mercadopago';
+    const isStripe = selectedMethod === 'stripe';
     
     return (
       <Modal isOpen={isOpen} onClose={onClose} title={isTransfer ? "¡Pago Pendiente!" : "¡Pago Exitoso!"} showCloseButton={false}>
         <div className="text-center py-8">
           <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${
-            isTransfer || isCash ? 'bg-yellow-100' : 'bg-green-100'
+            isTransfer || isCash || isMercadoPago || isStripe ? 'bg-yellow-100' : 'bg-green-100'
           }`}>
             <CheckCircle className={`w-10 h-10 ${
-              isTransfer || isCash ? 'text-yellow-600' : 'text-green-600'
+              isTransfer || isCash || isMercadoPago || isStripe ? 'text-yellow-600' : 'text-green-600'
             }`} />
           </div>
           <h3 className="text-2xl font-bold text-gray-800 mb-4">
-            {isTransfer ? '¡Pago Pendiente!' : isCash ? '¡Turno Reservado!' : '¡Perfecto!'}
+            {isTransfer ? '¡Pago Pendiente!' : isCash ? '¡Turno Reservado!' : isMercadoPago || isStripe ? '¡Pago en Proceso!' : '¡Perfecto!'}
           </h3>
           <p className="text-gray-600 mb-6">
             {isTransfer 
               ? 'Tu pago por transferencia ha sido registrado. Te contactaremos por WhatsApp cuando confirmemos la recepción.'
               : isCash
               ? 'Tu turno ha sido reservado. Deberás abonar la seña en efectivo al llegar al local.'
+              : isMercadoPago
+              ? 'Se ha abierto una nueva ventana con MercadoPago. Completa el pago allí y tu turno quedará confirmado automáticamente. Te enviaremos un WhatsApp cuando el pago se confirme.'
+              : isStripe
+              ? 'Se ha abierto una nueva ventana con Stripe. Completa el pago allí y tu turno quedará confirmado automáticamente. Te enviaremos un WhatsApp cuando el pago se confirme.'
               : 'Tu pago ha sido procesado exitosamente. Tu turno está confirmado.'
             }
           </p>
-          <div className={`rounded-2xl p-4 ${isTransfer || isCash ? 'bg-yellow-50' : 'bg-green-50'}`}>
-            <p className={`font-medium ${isTransfer || isCash ? 'text-yellow-800' : 'text-green-800'}`}>
+          <div className={`rounded-2xl p-4 ${isTransfer || isCash || isMercadoPago || isStripe ? 'bg-yellow-50' : 'bg-green-50'}`}>
+            <p className={`font-medium ${isTransfer || isCash || isMercadoPago || isStripe ? 'text-yellow-800' : 'text-green-800'}`}>
               {isTransfer 
                 ? `Monto registrado: ${formatCurrency(appointment.deposit_amount || 0)}`
                 : isCash
                 ? 'Recuerda llegar 10 minutos antes para realizar el pago.'
+                : isMercadoPago || isStripe
+                ? 'Si la ventana no se abrió, haz clic en el enlace de pago que recibirás por WhatsApp.'
                 : 'Recibirás un WhatsApp con la confirmación en breve.'}
+              <br />
               Total del servicio: {formatCurrency(appointment.total_price || 0)}
             </p>
           </div>
+          
+
+          
+          {/* Botón para cerrar el modal manualmente */}
+          {(isMercadoPago || isStripe) && (
+            <div className="mt-6">
+              <button
+                onClick={() => {
+                  onPaymentSuccess(selectedMethod);
+                  onClose();
+                  setShowSuccess(false);
+                }}
+                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 rounded-2xl font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-300"
+              >
+                Entendido, cerrar
+              </button>
+            </div>
+          )}
         </div>
       </Modal>
     );
