@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
-import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock, CreditCard as CardIcon, Wallet, Banknote, Building, ArrowRight, Calendar } from 'lucide-react';
+import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock, CreditCard as CardIcon, Wallet, Banknote, Building, ArrowRight, Calendar, Sparkles } from 'lucide-react';
 import type { Appointment } from '../types';
 import { paymentService } from '../services/api';
 
@@ -223,16 +223,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     const isStripe = selectedMethod === 'stripe';
     
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title={isTransfer ? "¡Pago Pendiente!" : "¡Pago Exitoso!"} showCloseButton={false}>
-        <div className="text-center py-8">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${
-            isTransfer || isCash || isMercadoPago || isStripe ? 'bg-yellow-100' : 'bg-green-100'
+      <Modal isOpen={isOpen} onClose={onClose} title={isTransfer ? "¡Pago Pendiente!" : "¡Pago Exitoso!"} showCloseButton={false} size="md">
+        <div className="text-center py-8 relative">
+          {/* Decorative elements */}
+          <div className="absolute -top-10 -right-10 w-20 h-20 bg-gradient-to-br from-yellow-300/20 to-orange-300/20 rounded-full blur-xl"></div>
+          <div className="absolute -bottom-10 -left-10 w-20 h-20 bg-gradient-to-br from-yellow-300/20 to-orange-300/20 rounded-full blur-xl"></div>
+          
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg ${
+            isTransfer || isCash || isMercadoPago || isStripe ? 'bg-gradient-to-r from-yellow-400 to-orange-400 shadow-yellow-200' : 'bg-gradient-to-r from-green-400 to-emerald-400 shadow-green-200'
           }`}>
-            <CheckCircle className={`w-10 h-10 ${
-              isTransfer || isCash || isMercadoPago || isStripe ? 'text-yellow-600' : 'text-green-600'
-            }`} />
+            <CheckCircle className="w-10 h-10 text-white" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">
+          <h3 className={`text-2xl font-bold mb-4 ${
+            isTransfer || isCash || isMercadoPago || isStripe ? 'bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent' : 'bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent'
+          }`}>
             {isTransfer ? '¡Pago Pendiente!' : isCash ? '¡Turno Reservado!' : isMercadoPago || isStripe ? '¡Pago en Proceso!' : '¡Perfecto!'}
           </h3>
           <p className="text-gray-600 mb-6">
@@ -247,7 +251,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               : 'Tu pago ha sido procesado exitosamente. Tu turno está confirmado.'
             }
           </p>
-          <div className={`rounded-2xl p-4 ${isTransfer || isCash || isMercadoPago || isStripe ? 'bg-yellow-50' : 'bg-green-50'}`}>
+          <div className={`rounded-2xl p-4 border ${isTransfer || isCash || isMercadoPago || isStripe ? 'bg-yellow-50 border-yellow-100' : 'bg-green-50 border-green-100'}`}>
             <p className={`font-medium ${isTransfer || isCash || isMercadoPago || isStripe ? 'text-yellow-800' : 'text-green-800'}`}>
               {isTransfer 
                 ? `Monto registrado: ${formatCurrency(appointment.deposit_amount || 0)}`
@@ -257,7 +261,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 ? 'Si la ventana no se abrió, haz clic en el enlace de pago que recibirás por WhatsApp.'
                 : 'Recibirás un WhatsApp con la confirmación en breve.'}
               <br />
-              Total del servicio: {formatCurrency(appointment.total_price || 0)}
+              <span className="inline-block mt-2">Total del servicio: <span className="font-bold">{formatCurrency(appointment.total_price || 0)}</span></span>
             </p>
           </div>
           
@@ -272,7 +276,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   onClose();
                   setShowSuccess(false);
                 }}
-                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 rounded-2xl font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-300"
+                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 rounded-2xl font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-300 shadow-lg shadow-pink-200/50 transform hover:scale-105"
               >
                 Entendido, cerrar
               </button>
@@ -289,7 +293,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Columna 1: Resumen del turno */}
           <div className="md:col-span-1">
-            <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl p-5 border border-pink-100 h-full">
+            <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl p-5 border border-pink-100 h-full shadow-md">
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
                 <Calendar className="w-5 h-5 mr-2 text-pink-500" />
                 Resumen del turno
@@ -321,7 +325,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div className="border-t border-pink-200 pt-3 mt-3">
                   <div className="flex justify-between text-lg">
                     <span className="font-semibold text-gray-800">Seña:</span>
-                    <span className="font-bold text-pink-600">
+                    <span className="font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
                       {formatCurrency(appointment.deposit_amount)}
                     </span>
                   </div>
@@ -332,7 +336,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
               
               {/* Información de seguridad */}
-              <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-100">
+              <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-100 shadow-inner">
                 <div className="flex items-center space-x-2">
                   <Shield className="w-4 h-4 text-blue-600" />
                   <p className="text-xs text-blue-700 font-medium">
@@ -345,7 +349,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           
           {/* Columna 2-3: Métodos de pago */}
           <div className="md:col-span-2">
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-md">
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
                 <Wallet className="w-5 h-5 mr-2 text-pink-500" />
                 Elige tu método de pago
@@ -361,14 +365,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <button
                         key={method.id}
                         onClick={() => setSelectedMethod(method.id)}
-                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 ${
+                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 transform ${
                           selectedMethod === method.id
-                            ? 'border-pink-300 bg-pink-50 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            ? 'border-pink-300 bg-pink-50 shadow-md scale-105'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02]'
                         }`}
                       >
                         <div className="flex items-center space-x-3">
-                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center shadow-md`}>
                             <Icon className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1 text-left">
@@ -408,14 +412,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <button
                         key={method.id}
                         onClick={() => setSelectedMethod(method.id)}
-                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 ${
+                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 transform ${
                           selectedMethod === method.id
-                            ? 'border-pink-300 bg-pink-50 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            ? 'border-pink-300 bg-pink-50 shadow-md scale-105'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02]'
                         }`}
                       >
                         <div className="flex items-center space-x-3">
-                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center shadow-md`}>
                             <Icon className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1 text-left">
@@ -442,7 +446,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               
               {/* Información adicional según método */}
               {selectedMethod === 'transfer' && showTransferInfo && (
-                <div className="mt-4 bg-green-50 rounded-xl p-4 border border-green-100">
+                <div className="mt-4 bg-green-50 rounded-xl p-4 border border-green-100 shadow-inner">
                   <h4 className="font-medium text-green-800 mb-3 flex items-center">
                     <Building className="w-4 h-4 mr-1" />
                     Datos para transferencia
@@ -531,7 +535,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               
               {/* Información para pago en efectivo */}
               {selectedMethod === 'cash' && showCashInfo && (
-                <div className="mt-4 bg-yellow-50 rounded-xl p-4 border border-yellow-100">
+                <div className="mt-4 bg-yellow-50 rounded-xl p-4 border border-yellow-100 shadow-inner">
                   <h4 className="font-medium text-yellow-800 mb-3 flex items-center">
                     <Banknote className="w-4 h-4 mr-1" />
                     Información importante
@@ -572,8 +576,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               
               {/* Mensaje de error */}
               {error && (
-                <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
-                  <p className="text-red-600 text-sm">{error}</p>
+                <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3 animate-pulse">
+                  <p className="text-red-600 text-sm flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span>{error}</span>
+                  </p>
                 </div>
               )}
             </div>
@@ -584,7 +591,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="flex space-x-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+            className="flex-1 py-3 px-4 bg-white border border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 transition-all duration-200 font-medium shadow-md"
           >
             Cancelar
           </button>
@@ -599,7 +606,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 handleTransferPayment();
               }}
               disabled={isProcessing}
-              className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg shadow-green-200/50 transform hover:scale-105"
             >
               {isProcessing ? (
                 <>
@@ -617,7 +624,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <button
               onClick={handleCashPayment}
               disabled={isProcessing}
-              className="flex-1 py-3 px-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-2xl hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-2xl hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg shadow-yellow-200/50 transform hover:scale-105"
             >
               {isProcessing ? (
                 <>
@@ -635,7 +642,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <button
               onClick={handlePayment}
               disabled={isProcessing}
-              className="flex-1 py-3 px-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl hover:from-pink-600 hover:to-rose-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl hover:from-pink-600 hover:to-rose-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg shadow-pink-200/50 transform hover:scale-105"
             >
               {isProcessing ? (
                 <>

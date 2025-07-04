@@ -1,12 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
+/* Import a more modern font */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
     background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #f3e8ff 100%);
     color: #374151;
     line-height: 1.6;
@@ -19,11 +22,11 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-3 rounded-2xl font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 shadow-lg;
+    @apply bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-3 rounded-2xl font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-pink-200/50;
   }
   
   .btn-secondary {
-    @apply bg-white text-gray-700 border-2 border-gray-200 px-6 py-3 rounded-2xl font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 shadow-md;
+    @apply bg-white text-gray-700 border border-gray-200 px-6 py-3 rounded-2xl font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 shadow-md;
   }
   
   .btn-danger {
@@ -35,11 +38,11 @@
   }
   
   .card {
-    @apply bg-white rounded-3xl shadow-xl p-8 border border-gray-100 backdrop-blur-sm;
+    @apply bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-white/50;
   }
   
   .input-field {
-    @apply w-full px-4 py-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 bg-white;
+    @apply w-full px-4 py-4 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300 bg-white/90 backdrop-blur-sm;
   }
   
   .glass-effect {
@@ -56,6 +59,10 @@
   
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s infinite linear;
   }
 }
 
@@ -74,6 +81,15 @@
   }
   50% {
     opacity: .8;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
   }
 }
 
@@ -196,6 +212,34 @@
 
 .shadow-glow {
   box-shadow: 0 0 30px rgba(236, 72, 153, 0.3);
+}
+
+/* New glass card effect */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+}
+
+/* Neumorphism effect */
+.neumorphic {
+  box-shadow: 
+    8px 8px 16px rgba(0, 0, 0, 0.05),
+    -8px -8px 16px rgba(255, 255, 255, 0.8);
+  background: linear-gradient(145deg, #f5f5f5, #ffffff);
+}
+
+.neumorphic-inset {
+  box-shadow: 
+    inset 8px 8px 16px rgba(0, 0, 0, 0.05),
+    inset -8px -8px 16px rgba(255, 255, 255, 0.8);
+  background: linear-gradient(145deg, #ffffff, #f5f5f5);
+}
+
+/* Utility for skewing elements */
+.skew-x-30 {
+  transform: skewX(30deg);
 }
 
 /* Responsive utilities */
