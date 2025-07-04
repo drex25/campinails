@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
-import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock, CreditCard as CardIcon, Wallet, Banknote, Building, ArrowRight } from 'lucide-react';
+import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock, CreditCard as CardIcon, Wallet, Banknote, Building, ArrowRight, Calendar } from 'lucide-react';
 import type { Appointment } from '../types';
 import { paymentService } from '../services/api';
 
@@ -338,7 +338,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <p className="text-xs text-blue-700 font-medium">
                     Pago 100% Seguro con encriptación SSL
                   </p>
-                </span>
+                </div>
               </div>
             </div>
           </div>
