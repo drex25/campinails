@@ -22,6 +22,7 @@ Route::get('/time-slots/available-days', [TimeSlotController::class, 'getAvailab
 Route::get('/employees/public', [EmployeeController::class, 'publicIndex']);
 Route::get('/time-slots/available', [TimeSlotController::class, 'getAvailableSlots']);
 Route::post('/appointments', [AppointmentController::class, 'store']);
+Route::post('/appointments/{id}/process-payment', [AppointmentController::class, 'processPayment']);
 
 // Rutas públicas para promociones
 Route::get('/promotions/active', [PromotionController::class, 'getActive']);

@@ -159,8 +159,8 @@ class AppointmentController extends Controller
                 $payment = \App\Models\Payment::create([
                     'appointment_id' => $appointment->id,
                     'amount' => $deposit_amount,
-                    'payment_method' => 'mercadopago',
-                    'payment_provider' => 'mercadopago',
+                    'payment_method' => 'pending',
+                    'payment_provider' => 'pending',
                     'metadata' => [
                         'service_name' => $service->name,
                         'client_name' => $client->name
@@ -171,11 +171,15 @@ class AppointmentController extends Controller
                 $result = $paymentService->processPayment($payment);
                 
                 if ($result['success']) {
+                    // Actualizar el pago con el método real
                     $payment->update([
+                        'payment_method' => 'mercadopago',
+                        'payment_provider' => 'mercadopago',
                         'provider_payment_id' => $result['payment_id'],
                         'status' => 'processing'
                     ]);
                     
+                    // Devolver la información necesaria para el pago
                     return response()->json([
                         'appointment' => $appointment->load(['service', 'client', 'employee']),
                         'payment_url' => $result['init_point'] ?? $result['sandbox_init_point'] ?? $result['checkout_url'],
@@ -204,7 +208,116 @@ class AppointmentController extends Controller
             }
         }
         
-        return response()->json($appointment->load(['service', 'client', 'employee']), 201);
+        // Si no requiere seña o si ocurrió algún error, devolver solo el turno
+        return response()->json([
+            'appointment' => $appointment->load(['service', 'client', 'employee']),
+            'requires_payment' => $service->requires_deposit && $deposit_amount > 0
+        ], 201);
+    }
+
+    /**
+     * Process payment for an appointment
+     */
+    public function processPayment(Request $request, string $id)
+    {
+        $appointment = Appointment::findOrFail($id);
+        
+        if ($appointment->deposit_paid) {
+            return response()->json([
+                'message' => 'Este turno ya tiene la seña pagada'
+            ], 422);
+        }
+        
+        $validated = $request->validate([
+            'payment_method' => 'required|in:mercadopago,stripe,transfer,cash',
+        ]);
+        
+        try {
+            $paymentService = app(\App\Services\PaymentService::class);
+            
+            $payment = \App\Models\Payment::create([
+                'appointment_id' => $appointment->id,
+                'amount' => $appointment->deposit_amount,
+                'payment_method' => $validated['payment_method'],
+                'payment_provider' => $validated['payment_method'] === 'transfer' || $validated['payment_method'] === 'cash' ? 'manual' : $validated['payment_method'],
+                'metadata' => [
+                    'service_name' => $appointment->service->name,
+                    'client_name' => $appointment->client->name
+                ],
+                'status' => 'pending'
+            ]);
+            
+            if (in_array($validated['payment_method'], ['mercadopago', 'stripe'])) {
+                $result = $paymentService->processPayment($payment);
+                
+                if ($result['success']) {
+                    $payment->update([
+                        'provider_payment_id' => $result['payment_id'],
+                        'status' => 'processing'
+                    ]);
+                    
+                    return response()->json([
+                        'appointment' => $appointment->load(['service', 'client', 'employee']),
+                        'payment_url' => $result['init_point'] ?? $result['sandbox_init_point'] ?? $result['checkout_url'],
+                        'payment_id' => $result['payment_id'],
+                        'requires_payment' => true
+                    ], 201);
+                } else {
+                    // Si falla el pago, eliminar el turno
+                    $appointment->delete();
+                    $availableSlot->update(['status' => 'available', 'appointment_id' => null]);
+                    
+                    return response()->json([
+                        'message' => 'Error al procesar el pago: ' . $result['error']
+                    ], 422);
+                }
+            } catch (\Exception $e) {
+                Log::error('Error processing payment: ' . $e->getMessage());
+                
+                // Si falla el pago, eliminar el pago pero mantener el turno
+                $payment->delete();
+                
+                return response()->json([
+                    'message' => 'Error al procesar el pago. Por favor, intenta nuevamente.'
+                ], 422);
+            }
+        } else if ($validated['payment_method'] === 'transfer') {
+            // Para transferencia, marcar como pendiente
+            $payment->update([
+                'status' => 'processing',
+                'payment_provider' => 'manual'
+            ]);
+            
+            // El turno permanece como pending_deposit hasta que se confirme el pago
+            $appointment->update([
+                'admin_notes' => 'Pago por transferencia pendiente de confirmación.'
+            ]);
+            
+            return response()->json([
+                'message' => 'Pago por transferencia registrado. Pendiente de confirmación.',
+                'appointment' => $appointment->load(['service', 'client', 'employee']),
+            ], 201);
+        } else if ($validated['payment_method'] === 'cash') {
+            // Para efectivo, marcar como pendiente
+            $payment->update([
+                'status' => 'processing',
+                'payment_provider' => 'manual'
+            ]);
+            
+            // El turno permanece como pending_deposit hasta que se confirme el pago en el local
+            $appointment->update([
+                'admin_notes' => 'Cliente pagará en efectivo al llegar al local.'
+            ]);
+            
+            return response()->json([
+                'message' => 'Pago en efectivo registrado. Se confirmará al llegar al local.',
+                'appointment' => $appointment->load(['service', 'client', 'employee']),
+            ], 201);
+        }
+        
+        return response()->json([
+            'message' => 'Método de pago no soportado'
+        ], 422);
     }
 
     /**
