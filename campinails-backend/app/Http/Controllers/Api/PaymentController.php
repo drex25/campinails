@@ -87,23 +87,28 @@ class PaymentController extends Controller
         } elseif ($validated['payment_method'] === 'transfer') {
             // Pago por transferencia se marca como pendiente
             $payment->update([
-                'status' => 'pending',
+                'status' => 'processing',
                 'payment_provider' => 'manual'
             ]);
             
             // El turno permanece como pending_deposit hasta que se confirme el pago
+            
+            // Si hay metadata con has_receipt, actualizar el estado del turno
+            if (isset($validated['metadata']['has_receipt']) && $validated['metadata']['has_receipt']) {
+                $appointment->update([
+                    'admin_notes' => 'Comprobante de transferencia subido por el cliente. Pendiente de verificación.'
+                ]);
+            }
         } elseif ($validated['payment_method'] === 'cash') {
             // Pago en efectivo se marca como completado inmediatamente
             $payment->update([
-                'status' => 'completed',
-                'paid_at' => now()
+                'status' => 'processing',
+                'payment_provider' => 'manual'
             ]);
             
-            // Actualizar el turno
+            // El turno permanece como pending_deposit hasta que se confirme el pago en el local
             $appointment->update([
-                'deposit_paid' => true,
-                'deposit_paid_at' => now(),
-                'status' => 'confirmed'
+                'admin_notes' => 'Cliente pagará en efectivo al llegar al local.'
             ]);
         }
 

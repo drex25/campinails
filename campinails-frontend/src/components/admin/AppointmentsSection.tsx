@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { appointmentService } from '../../services/api';
 import type { Appointment } from '../../types';
-import { Clock, Plus, Filter, Search, Calendar, User, Phone, Mail, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Clock, Plus, Filter, Search, Calendar, User, Phone, Mail, CheckCircle, XCircle, AlertCircle, DollarSign, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useToast } from '../../hooks/useToast';
+import { ToastContainer } from '../ui/Toast';
+import { Modal } from '../ui/Modal';
 
 export const AppointmentsSection: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toasts, removeToast, success, error } = useToast();
 
   useEffect(() => {
     loadAppointments();
@@ -28,6 +37,55 @@ export const AppointmentsSection: React.FC = () => {
       console.error('Error loading appointments:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleConfirmAppointment = async () => {
+    if (!selectedAppointment) return;
+    
+    setIsProcessing(true);
+    try {
+      await appointmentService.update(selectedAppointment.id, {
+        status: 'confirmed',
+        deposit_paid: true,
+        deposit_paid_at: new Date().toISOString()
+      });
+      
+      success('Turno confirmado', 'El turno ha sido confirmado exitosamente');
+      loadAppointments();
+      setShowConfirmModal(false);
+    } catch (err) {
+      console.error('Error al confirmar turno:', err);
+      error('Error', 'No se pudo confirmar el turno');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCancelAppointment = async () => {
+    if (!selectedAppointment) return;
+    
+    if (!cancelReason.trim()) {
+      error('Error', 'Debes ingresar un motivo de cancelación');
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      await appointmentService.update(selectedAppointment.id, {
+        status: 'cancelled',
+        admin_notes: `Cancelado: ${cancelReason}`
+      });
+      
+      success('Turno cancelado', 'El turno ha sido cancelado exitosamente');
+      loadAppointments();
+      setShowCancelModal(false);
+      setCancelReason('');
+    } catch (err) {
+      console.error('Error al cancelar turno:', err);
+      error('Error', 'No se pudo cancelar el turno');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -202,8 +260,8 @@ export const AppointmentsSection: React.FC = () => {
                 </div>
               </div>
 
-              {/* Actions and Price */}
-              <div className="flex items-center space-x-4">
+              {/* Price and Payment Status */}
+              <div className="flex flex-col items-end space-y-2">
                 <div className="text-right">
                   <div className="text-xl font-bold text-gray-800">
                     {formatCurrency(appointment.total_price)}
@@ -217,17 +275,82 @@ export const AppointmentsSection: React.FC = () => {
                     </div>
                   )}
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <button className="p-2 rounded-2xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors duration-200">
-                    <Phone className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 rounded-2xl bg-green-50 text-green-600 hover:bg-green-100 transition-colors duration-200">
-                    <Mail className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
             </div>
+
+            {/* Actions */}
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <button className="p-2 rounded-2xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors duration-200">
+                  <Phone className="w-4 h-4" />
+                </button>
+                <button className="p-2 rounded-2xl bg-green-50 text-green-600 hover:bg-green-100 transition-colors duration-200">
+                  <Mail className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {appointment.status === 'pending_deposit' && (
+                  <button 
+                    onClick={() => {
+                      setSelectedAppointment(appointment);
+                      setShowConfirmModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-xl hover:bg-green-600 transition-colors flex items-center space-x-1"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Confirmar</span>
+                  </button>
+                )}
+                
+                {(appointment.status === 'pending_deposit' || appointment.status === 'confirmed') && (
+                  <button 
+                    onClick={() => {
+                      setSelectedAppointment(appointment);
+                      setShowCancelModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-xl hover:bg-red-600 transition-colors flex items-center space-x-1"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Cancelar</span>
+                  </button>
+                )}
+                
+                {appointment.status === 'confirmed' && !appointment.deposit_paid && (
+                  <button 
+                    onClick={() => {
+                      setSelectedAppointment(appointment);
+                      setShowConfirmModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-yellow-500 text-white text-sm rounded-xl hover:bg-yellow-600 transition-colors flex items-center space-x-1"
+                  >
+                    <DollarSign className="w-3.5 h-3.5" />
+                    <span>Registrar Pago</span>
+                  </button>
+                )}
+                
+                {appointment.status === 'confirmed' && (
+                  <button 
+                    onClick={() => {
+                      // Marcar como completado
+                      appointmentService.update(appointment.id, { status: 'completed' })
+                        .then(() => {
+                          success('Turno completado', 'El turno ha sido marcado como completado');
+                          loadAppointments();
+                        })
+                        .catch(err => {
+                          console.error('Error al completar turno:', err);
+                          error('Error', 'No se pudo completar el turno');
+                        });
+                    }}
+                    className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-xl hover:bg-blue-600 transition-colors flex items-center space-x-1"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Completar</span>
+                  </button>
+                )}
+                </div>
+              </div>
 
             {/* Special Requests */}
             {appointment.special_requests && (
@@ -263,6 +386,168 @@ export const AppointmentsSection: React.FC = () => {
           )}
         </div>
       )}
+      
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        title="Confirmar Turno"
+        size="md"
+      >
+        <div className="space-y-6">
+          {selectedAppointment && (
+            <div className="bg-green-50 rounded-2xl p-4">
+              <h3 className="font-semibold text-green-800 mb-3">Detalles del Turno</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-green-700">Cliente:</span>
+                  <span className="font-medium text-green-900">{selectedAppointment.client?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-green-700">Servicio:</span>
+                  <span className="font-medium text-green-900">{selectedAppointment.service?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-green-700">Fecha:</span>
+                  <span className="font-medium text-green-900">
+                    {format(new Date(selectedAppointment.scheduled_at), 'EEEE, d MMMM yyyy', { locale: es })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-green-700">Hora:</span>
+                  <span className="font-medium text-green-900">
+                    {format(new Date(selectedAppointment.scheduled_at), 'HH:mm')}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-green-200">
+                  <span className="text-green-700">Seña:</span>
+                  <span className="font-medium text-green-900">{formatCurrency(selectedAppointment.deposit_amount)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="bg-blue-50 rounded-2xl p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <CreditCard className="w-5 h-5 text-blue-600" />
+              <h3 className="font-semibold text-blue-800">Confirmar Pago</h3>
+            </div>
+            <p className="text-sm text-blue-700">
+              Al confirmar este turno, estás verificando que el pago de la seña ha sido recibido correctamente.
+            </p>
+          </div>
+          
+          <div className="flex space-x-3 pt-4">
+            <button
+              onClick={() => setShowConfirmModal(false)}
+              className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmAppointment}
+              disabled={isProcessing}
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Procesando...</span>
+                </div>
+              ) : (
+                'Confirmar Turno'
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+      
+      {/* Cancel Modal */}
+      <Modal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        title="Cancelar Turno"
+        size="md"
+      >
+        <div className="space-y-6">
+          {selectedAppointment && (
+            <div className="bg-red-50 rounded-2xl p-4">
+              <h3 className="font-semibold text-red-800 mb-3">Detalles del Turno</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-red-700">Cliente:</span>
+                  <span className="font-medium text-red-900">{selectedAppointment.client?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-red-700">Servicio:</span>
+                  <span className="font-medium text-red-900">{selectedAppointment.service?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-red-700">Fecha:</span>
+                  <span className="font-medium text-red-900">
+                    {format(new Date(selectedAppointment.scheduled_at), 'EEEE, d MMMM yyyy', { locale: es })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-red-700">Hora:</span>
+                  <span className="font-medium text-red-900">
+                    {format(new Date(selectedAppointment.scheduled_at), 'HH:mm')}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Motivo de cancelación
+            </label>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-red-100 focus:border-red-300 transition-all duration-300 resize-none"
+              placeholder="Ingresa el motivo de la cancelación..."
+            />
+          </div>
+          
+          <div className="bg-yellow-50 rounded-2xl p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600" />
+              <h3 className="font-semibold text-yellow-800">Importante</h3>
+            </div>
+            <p className="text-sm text-yellow-700">
+              Al cancelar este turno, se liberará el horario para otros clientes. Si el cliente ya pagó la seña, considera ofrecer un reembolso o reprogramación.
+            </p>
+          </div>
+          
+          <div className="flex space-x-3 pt-4">
+            <button
+              onClick={() => setShowCancelModal(false)}
+              className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+            >
+              Volver
+            </button>
+            <button
+              onClick={handleCancelAppointment}
+              disabled={isProcessing}
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-2xl hover:from-red-600 hover:to-pink-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Procesando...</span>
+                </div>
+              ) : (
+                'Cancelar Turno'
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+      
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 };

@@ -197,7 +197,21 @@ class NotificationService
             'type' => 'whatsapp',
             'recipient_type' => 'client',
             'recipient_id' => $appointment->client_id,
-            'title' => 'Turno Confirmado - Campi Nails',
+            'title' => 'Confirmación de Turno - Campi Nails',
+            'message' => $message,
+            'data' => ['appointment_id' => $appointment->id]
+        ]);
+    }
+
+    public function sendAppointmentCancellation($appointment)
+    {
+        $message = "¡Hola {$appointment->client->name}! Lamentamos informarte que tu turno para {$appointment->service->name} del {$appointment->formatted_scheduled_at} ha sido cancelado. Por favor, contáctanos si deseas reprogramarlo. 💅";
+        
+        return $this->createAndSend([
+            'type' => 'whatsapp',
+            'recipient_type' => 'client',
+            'recipient_id' => $appointment->client_id,
+            'title' => 'Turno Cancelado - Campi Nails',
             'message' => $message,
             'data' => ['appointment_id' => $appointment->id]
         ]);

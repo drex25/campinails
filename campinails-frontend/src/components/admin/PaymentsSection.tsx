@@ -5,12 +5,16 @@ import { useToast } from '../../hooks/useToast';
 import { ToastContainer } from '../ui/Toast';
 import { paymentService } from '../../services/api';
 import type { Payment } from '../../types';
+import { Modal } from '../ui/Modal';
 
 export const PaymentsSection: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toasts, removeToast, success, error } = useToast();
 
   useEffect(() => {
@@ -35,13 +39,17 @@ export const PaymentsSection: React.FC = () => {
   };
 
   const handleConfirmPayment = async (paymentId: number) => {
+    setIsProcessing(true);
     try {
       await paymentService.confirm(paymentId);
       success('Pago confirmado', 'El pago se confirmó correctamente');
       loadPayments();
+      setShowConfirmModal(false);
     } catch (err: any) {
       console.error('Error confirmando pago:', err);
       error('Error', err.response?.data?.message || 'Error al confirmar el pago');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -293,12 +301,16 @@ export const PaymentsSection: React.FC = () => {
                     <div className={`text-xs px-2 py-1 rounded-full ${getPaymentStatusColor(payment.status)}`}>
                       {getPaymentStatusText(payment.status)}
                     </div>
-                    {payment.status === 'pending' && payment.payment_method === 'transfer' && (
+                    {(payment.status === 'pending' || payment.status === 'processing') && (
                       <button
-                        onClick={() => handleConfirmPayment(payment.id)}
-                        className="mt-2 px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition-colors"
+                        onClick={() => {
+                          setSelectedPayment(payment);
+                          setShowConfirmModal(true);
+                        }}
+                        className="mt-2 px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-1"
                       >
-                        Confirmar
+                        <CheckCircle className="w-3 h-3" />
+                        <span>Confirmar</span>
                       </button>
                     )}
                   </div>
@@ -329,6 +341,83 @@ export const PaymentsSection: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Confirm Payment Modal */}
+      <Modal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        title="Confirmar Pago"
+        size="md"
+      >
+        {selectedPayment && (
+          <div className="space-y-6">
+            <div className="bg-green-50 rounded-2xl p-4">
+              <h3 className="font-semibold text-green-800 mb-3">Detalles del Pago</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-green-700">Cliente:</span>
+                  <span className="font-medium text-green-900">{selectedPayment.appointment?.client?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-green-700">Servicio:</span>
+                  <span className="font-medium text-green-900">{selectedPayment.appointment?.service?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-green-700">Método:</span>
+                  <span className="font-medium text-green-900">{getPaymentMethodText(selectedPayment.payment_method)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-green-200">
+                  <span className="text-green-700">Monto:</span>
+                  <span className="font-medium text-green-900">${selectedPayment.amount.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 rounded-2xl p-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <CheckCircle className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-blue-800">Confirmar Pago</h3>
+              </div>
+              <p className="text-sm text-blue-700">
+                Al confirmar este pago, el turno pasará a estado "Confirmado" y se notificará al cliente.
+              </p>
+              {selectedPayment.payment_method === 'transfer' && (
+                <p className="text-sm text-blue-700 mt-2">
+                  Asegúrate de haber verificado el comprobante de transferencia antes de confirmar.
+                </p>
+              )}
+              {selectedPayment.payment_method === 'cash' && (
+                <p className="text-sm text-blue-700 mt-2">
+                  Confirma este pago solo después de haber recibido el efectivo.
+                </p>
+              )}
+            </div>
+            
+            <div className="flex space-x-3 pt-4">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleConfirmPayment(selectedPayment.id)}
+                disabled={isProcessing}
+                className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Procesando...</span>
+                  </div>
+                ) : (
+                  'Confirmar Pago'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Payment Form Modal */}
       <PaymentForm

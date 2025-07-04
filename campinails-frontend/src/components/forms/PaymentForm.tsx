@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Modal } from '../ui/Modal';
-import { CreditCard, DollarSign, Smartphone, Save, X } from 'lucide-react';
+import { CreditCard, DollarSign, Smartphone, Save, X, Camera } from 'lucide-react';
 import { appointmentService } from '../../services/api';
 import type { Appointment } from '../../types';
 
@@ -28,6 +28,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [transferReceipt, setTransferReceipt] = useState<File | null>(null);
+  const [transferReceiptPreview, setTransferReceiptPreview] = useState<string | null>(null);
 
   const {
     register,
@@ -75,11 +77,59 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setTransferReceipt(file);
+      
+      // Crear preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTransferReceiptPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = async (data: any) => {
     setIsLoading(true);
     try {
+      // Validar que se haya subido un comprobante si es transferencia
+      if (data.payment_method === 'transfer' && !transferReceipt) {
+        alert('Debes subir un comprobante de transferencia');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Preparar datos adicionales según el método de pago
+      let metadata: any = {
+        service_name: selectedAppointment?.service?.name,
+        client_name: selectedAppointment?.client?.name
+      };
+      
+      if (data.payment_method === 'transfer') {
+        metadata.has_receipt = true;
+        metadata.transfer_info = {
+          cbu: '0000003100010000000001',
+          alias: 'CAMPI.NAILS.MP',
+          holder: 'Campi Nails',
+          bank: 'Mercado Pago'
+        };
+      } else if (data.payment_method === 'cash') {
+        metadata.payment_note = 'Pago en efectivo registrado por administrador';
+      }
+      
+      const paymentData = {
+        appointment_id: Number(data.appointment_id),
+        amount: Number(data.amount),
+        payment_method: data.payment_method,
+        payment_provider: data.payment_method === 'transfer' || data.payment_method === 'cash' ? 'manual' : data.payment_method,
+        metadata: metadata,
+        notes: data.notes
+      };
+      
       // Simular procesamiento de pago
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await paymentService.create(paymentData);
       
       // Actualizar el estado del turno a confirmado
       if (selectedAppointment) {
@@ -175,6 +225,52 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
               <span className="font-bold text-emerald-600">{formatCurrency(selectedAppointment.deposit_amount)}</span>
             </div>
           </div>
+          
+          {/* Comprobante de transferencia */}
+          {watchedPaymentMethod === 'transfer' && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Comprobante de transferencia
+              </label>
+              
+              {transferReceiptPreview ? (
+                <div className="relative mb-3">
+                  <img 
+                    src={transferReceiptPreview} 
+                    alt="Comprobante" 
+                    className="w-full h-48 object-contain border border-gray-200 rounded-xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransferReceipt(null);
+                      setTransferReceiptPreview(null);
+                    }}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => document.getElementById('receipt-upload')?.click()}
+                >
+                  <Camera className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-700">Haz clic para subir el comprobante</p>
+                  <p className="text-xs text-gray-500 mt-1">Formatos: JPG, PNG o PDF</p>
+                </div>
+              )}
+              
+              <input
+                id="receipt-upload"
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+          )}
         )}
 
         {/* Método de pago */}
@@ -207,7 +303,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
                     <Icon className="w-5 h-5 text-white" />
                   </div>
-                  <span className="font-medium text-gray-800">{method.name}</span>
+                  <span>Monto a pagar</span>
                 </label>
               );
             })}

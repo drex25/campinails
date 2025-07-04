@@ -222,14 +222,17 @@ class AppointmentController extends Controller
     public function update(Request $request, string $id)
     {
         $appointment = Appointment::findOrFail($id);
+        
         $validated = $request->validate([
             'scheduled_at' => 'nullable|date_format:Y-m-d H:i',
             'status' => ['nullable', Rule::in(['pending_deposit','confirmed','rescheduled','cancelled','no_show','completed'])],
             'deposit_paid' => 'nullable|boolean',
-            'deposit_paid_at' => 'nullable|date',
+            'deposit_paid_at' => 'nullable',
             'special_requests' => 'nullable|string',
             'reference_photo' => 'nullable|string',
+            'admin_notes' => 'nullable|string',
         ]);
+        
         // Reprogramación
         if (isset($validated['scheduled_at'])) {
             if ($appointment->reschedule_count >= 2) {
@@ -285,7 +288,34 @@ class AppointmentController extends Controller
         if (isset($validated['reference_photo'])) {
             $appointment->reference_photo = $validated['reference_photo'];
         }
+        
+        // Notas del admin
+        if (isset($validated['admin_notes'])) {
+            $appointment->admin_notes = $validated['admin_notes'];
+        }
+        
         $appointment->save();
+        
+        // Si se confirma el turno, enviar notificación al cliente
+        if (isset($validated['status']) && $validated['status'] === 'confirmed' && $appointment->status !== 'confirmed') {
+            try {
+                $notificationService = app(\App\Services\NotificationService::class);
+                $notificationService->sendAppointmentConfirmation($appointment);
+            } catch (\Exception $e) {
+                \Log::error('Error enviando notificación de confirmación: ' . $e->getMessage());
+            }
+        }
+        
+        // Si se cancela el turno, enviar notificación al cliente
+        if (isset($validated['status']) && $validated['status'] === 'cancelled' && $appointment->status !== 'cancelled') {
+            try {
+                $notificationService = app(\App\Services\NotificationService::class);
+                $notificationService->sendAppointmentCancellation($appointment);
+            } catch (\Exception $e) {
+                \Log::error('Error enviando notificación de cancelación: ' . $e->getMessage());
+            }
+        }
+        
         return response()->json($appointment->load(['service', 'client', 'employee']));
     }
 
