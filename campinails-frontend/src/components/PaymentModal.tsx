@@ -261,10 +261,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <div className={`rounded-2xl p-4 ${isTransfer || isCash ? 'bg-yellow-50' : 'bg-green-50'}`}>
             <p className={`font-medium ${isTransfer || isCash ? 'text-yellow-800' : 'text-green-800'}`}>
               {isTransfer 
-                {formatCurrency(appointment.deposit_amount || 0)}
+                ? `Monto registrado: ${formatCurrency(appointment.deposit_amount || 0)}`
                 : isCash
                 ? 'Recuerda llegar 10 minutos antes para realizar el pago.'
-                : 'Recibirás un WhatsApp con la confirmación en breve.'
+                : 'Recibirás un WhatsApp con la confirmación en breve.'}
               Total del servicio: {formatCurrency(appointment.total_price || 0)}
             </p>
           </div>
