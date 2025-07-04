@@ -37,6 +37,7 @@ export const AppointmentForm: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [paymentRequired, setPaymentRequired] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -78,6 +79,8 @@ export const AppointmentForm: React.FC = () => {
   useEffect(() => {
     if (watchedServiceId) {
       const service = services.find(s => s.id === watchedServiceId);
+      // Actualizar si el servicio requiere pago
+      setPaymentRequired(service?.requires_deposit || false);
       setSelectedService(service || null);
       setSelectedEmployee(null);
       setSelectedDate('');
@@ -180,13 +183,14 @@ export const AppointmentForm: React.FC = () => {
       console.log('Cita creada:', {
         id: appointment.id,
         scheduled_at: appointment.scheduled_at,
-        employee: appointment.employee?.name
+        employee: appointment.employee?.name,
+        requires_payment: appointment.deposit_amount > 0 && selectedService?.requires_deposit
       });
       
       setCreatedAppointment(appointment);
       
       // Si el servicio requiere seña, mostrar modal de pago
-      if (selectedService?.requires_deposit && appointment.deposit_amount > 0) {
+      if (paymentRequired && appointment.deposit_amount > 0) {
         setShowPaymentModal(true);
       } else {
         setIsSuccess(true);
@@ -753,8 +757,8 @@ export const AppointmentForm: React.FC = () => {
                     {selectedService?.requires_deposit && (
                       <li>• Deberás abonar la seña para asegurar tu reserva</li>
                     )}
-                    <li>• Puedes reprogramar hasta 2 veces sin costo</li>
-                    <li>• Cancelaciones con menos de 24hs pierden la seña</li>
+                    <li>• Puedes reprogramar hasta 2 veces sin costo adicional</li>
+                    <li>• Cancelaciones con menos de 24hs de anticipación pierden la seña</li>
                   </ul>
                 </div>
 
@@ -781,9 +785,9 @@ export const AppointmentForm: React.FC = () => {
                     {isLoading ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Enviando...</span>
+                        <span>Procesando...</span>
                       </>
-                    ) : selectedService?.requires_deposit ? (
+                    ) : paymentRequired ? (
                       <>
                         <CreditCard className="w-5 h-5" />
                         <span>Confirmar y Pagar</span>
