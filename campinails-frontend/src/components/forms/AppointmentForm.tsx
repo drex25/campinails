@@ -7,6 +7,7 @@ import { Calendar, Clock, User, Phone, Mail, MessageSquare, Save, X, CheckCircle
 import { appointmentService, clientService } from '../../services/api';
 import type { Appointment, Service, Employee, Client } from '../../types';
 import { format, parse, addMinutes } from 'date-fns';
+import { CustomDatePicker } from '../CustomDatePicker';
 
 const schema = yup.object({
   service_id: yup.number().required('Servicio es requerido'),
@@ -82,6 +83,11 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const watchedClientId = watch('client_id');
   const watchedScheduledAtTime = watch('scheduled_at_time');
 
+  // Nuevo estado para la fecha seleccionada (sincronizado con react-hook-form)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    initialDate ? new Date(initialDate) : undefined
+  );
+
   useEffect(() => {
     loadClients();
   }, []);
@@ -134,6 +140,13 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       }
     }
   }, [appointment, initialDate, initialTime, services, reset]);
+
+  // Sincronizar el valor de react-hook-form con el date picker visual
+  useEffect(() => {
+    if (selectedDate) {
+      setValue('scheduled_at_date', selectedDate.toISOString().slice(0, 10));
+    }
+  }, [selectedDate, setValue]);
 
   useEffect(() => {
     if (watchedServiceId && watchedScheduledAtTime) {
@@ -253,10 +266,9 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
               <Calendar className="w-4 h-4" />
               <span>Fecha</span>
             </label>
-            <input
-              {...register('scheduled_at_date')}
-              type="date"
-              className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-100 focus:border-pink-300 transition-all duration-300"
+            <CustomDatePicker
+              selected={selectedDate}
+              onSelect={date => setSelectedDate(date)}
             />
             {errors.scheduled_at_date && (
               <p className="mt-1 text-sm text-red-500">{errors.scheduled_at_date.message}</p>

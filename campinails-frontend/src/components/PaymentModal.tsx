@@ -374,29 +374,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             ? 'border-pink-300 bg-pink-50 shadow-md scale-105'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02]'
                         }`}
+                        style={{ minHeight: '72px' }}
                       >
+                        {/* Badge bien posicionado */}
+                        {method.badge && (
+                          <span className="absolute -top-3 -right-3 bg-pink-500 text-white text-[11px] px-2 py-0.5 rounded-full font-semibold shadow z-10 whitespace-nowrap select-none">
+                            {method.badge}
+                          </span>
+                        )}
                         <div className="flex items-center space-x-3">
                           <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center shadow-md`}>
                             <Icon className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1 text-left">
-                            <div className="flex items-center">
-                              <span className="font-medium text-gray-800">{method.name}</span>
-                              {method.badge && (
-                                <span className="absolute -top-3 -right-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs px-3 py-1 rounded-full font-medium border border-white shadow-md transform rotate-2 z-10">
-                                  {method.badge}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500">{method.description}</p>
+                            <span className="font-medium text-gray-800 block leading-tight">{method.name}</span>
+                            <p className="text-xs text-gray-500 leading-tight">{method.description}</p>
                           </div>
-                          <div className={`w-5 h-5 rounded-full border-2 ${
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                             selectedMethod === method.id
                               ? 'border-pink-500 bg-pink-500'
                               : 'border-gray-300'
                           }`}>
                             {selectedMethod === method.id && (
-                              <div className="w-full h-full rounded-full bg-white scale-50" />
+                              <div className="w-3 h-3 rounded-full bg-white" />
                             )}
                           </div>
                         </div>
@@ -421,29 +421,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             ? 'border-pink-300 bg-pink-50 shadow-md scale-105'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02]'
                         }`}
+                        style={{ minHeight: '72px' }}
                       >
+                        {/* Badge bien posicionado */}
+                        {method.badge && (
+                          <span className="absolute -top-3 -right-3 bg-pink-500 text-white text-[11px] px-2 py-0.5 rounded-full font-semibold shadow z-10 whitespace-nowrap select-none">
+                            {method.badge}
+                          </span>
+                        )}
                         <div className="flex items-center space-x-3">
                           <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center shadow-md`}>
                             <Icon className="w-5 h-5 text-white" />
                           </div>
-                          <div className="flex-1 text-left relative">
-                            <div className="flex items-center">
-                              <span className="font-medium text-gray-800">{method.name}</span>
-                              {method.badge && (
-                                <span className="absolute -top-3 -right-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs px-3 py-1 rounded-full font-medium border border-white shadow-md transform rotate-2 z-10">
-                                  {method.badge}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500">{method.description}</p>
+                          <div className="flex-1 text-left">
+                            <span className="font-medium text-gray-800 block leading-tight">{method.name}</span>
+                            <p className="text-xs text-gray-500 leading-tight">{method.description}</p>
                           </div>
-                          <div className={`w-5 h-5 rounded-full border-2 ${
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                             selectedMethod === method.id
                               ? 'border-pink-500 bg-pink-500'
                               : 'border-gray-300'
                           }`}>
                             {selectedMethod === method.id && (
-                              <div className="w-full h-full rounded-full bg-white scale-50" />
+                              <div className="w-3 h-3 rounded-full bg-white" />
                             )}
                           </div>
                         </div>
