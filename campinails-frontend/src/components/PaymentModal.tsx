@@ -380,10 +380,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <Icon className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1 text-left">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center">
                               <span className="font-medium text-gray-800">{method.name}</span>
                               {method.badge && (
-                                <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs px-2 py-0.5 rounded-full font-medium border border-pink-200/50 shadow-sm">
+                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-medium border border-white shadow-md transform rotate-2 z-10">
                                   {method.badge}
                                 </span>
                               )}
@@ -427,10 +427,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <Icon className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1 text-left relative">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center">
                               <span className="font-medium text-gray-800">{method.name}</span>
                               {method.badge && (
-                                <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs px-2 py-0.5 rounded-full font-medium border border-pink-200/50 shadow-sm">
+                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-medium border border-white shadow-md transform rotate-2 z-10">
                                   {method.badge}
                                 </span>
                               )}
