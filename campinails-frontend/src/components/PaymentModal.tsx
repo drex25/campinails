@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
-import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera } from 'lucide-react';
+import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X } from 'lucide-react';
 import type { Appointment } from '../types';
 import { paymentService } from '../services/api';
 
@@ -17,7 +17,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   appointment,
   onPaymentSuccess,
 }) => {
-  const [selectedMethod, setSelectedMethod] = useState<'mercadopago' | 'stripe' | 'transfer'>('mercadopago');
+  const [selectedMethod, setSelectedMethod] = useState<'mercadopago' | 'stripe' | 'transfer' | 'cash'>('mercadopago');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string>('');
@@ -37,19 +37,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       popular: true,
     },
     {
-      id: 'stripe' as const,
-      name: 'Tarjeta de Crédito',
-      description: 'Visa, Mastercard, American Express',
-      icon: CreditCard,
-      color: 'from-purple-500 to-pink-500',
-      popular: false,
-    },
-    {
       id: 'cash' as const,
       name: 'Efectivo',
       description: 'Pago en el local',
       icon: DollarSign,
       color: 'from-yellow-500 to-orange-500',
+      popular: false,
+    },
+    {
+      id: 'stripe' as const,
+      name: 'Tarjeta de Crédito',
+      description: 'Visa, Mastercard, American Express',
+      icon: CreditCard,
+      color: 'from-purple-500 to-pink-500',
       popular: false,
     },
     {
@@ -523,8 +523,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           {selectedMethod === 'transfer' && showTransferInfo ? (
             <>
               <button
-                onClick={handleTransferPayment}
-                disabled={isProcessing || !transferReceipt}
+                onClick={() => {
+                  if (!transferReceipt) {
+                    setError('Debes subir un comprobante de transferencia');
+                    return;
+                  }
+                  handleTransferPayment();
+                }}
+                disabled={isProcessing}
                 className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
                 {isProcessing ? (

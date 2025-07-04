@@ -144,6 +144,7 @@ export const appointmentService = {
 
   async create(data: CreateAppointmentRequest) {
     const response = await api.post<CreateAppointmentResponse>('/appointments', data);
+    console.log('Respuesta de creación de turno:', response.data);
     return response.data;
   },
 
@@ -289,6 +290,7 @@ export const paymentService = {
 
   async create(data: any) {
     const response = await api.post('/payments', data);
+    console.log('Respuesta de creación de pago:', response.data);
     return response.data;
   },
 
