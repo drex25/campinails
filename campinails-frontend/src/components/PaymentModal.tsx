@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
-import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock, CreditCard as CardIcon, Wallet, Banknote, Building, ArrowRight, Calendar, Sparkles } from 'lucide-react';
+import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock, CreditCard as CardIcon, Wallet, Banknote, Building, ArrowRight, Calendar, Sparkles, Star, Heart } from 'lucide-react';
 import type { Appointment } from '../types';
 import { paymentService } from '../services/api';
 
@@ -30,39 +30,43 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   // Métodos de pago agrupados por categoría
   const paymentMethodGroups = {
     online: [
-      {
-        id: 'mercadopago' as const,
-        name: 'MercadoPago',
-        description: 'Tarjetas, QR, billeteras',
-        icon: Smartphone,
-        color: 'from-blue-500 to-indigo-500',
-        popular: true,
-      },
-      {
-        id: 'stripe' as const,
-        name: 'Tarjeta de Crédito',
-        description: 'Visa, Mastercard, Amex',
-        icon: CreditCard,
-        color: 'from-purple-500 to-pink-500',
+      { 
+        id: 'mercadopago' as const, 
+        name: 'MercadoPago', 
+        description: 'Tarjetas, QR, billeteras', 
+        icon: Smartphone, 
+        color: 'from-blue-500 to-indigo-500', 
+        popular: true, 
+        badge: '✨ Recomendado'
+      }, 
+      { 
+        id: 'stripe' as const, 
+        name: 'Tarjeta de Crédito', 
+        description: 'Visa, Mastercard, Amex', 
+        icon: CreditCard, 
+        color: 'from-purple-500 to-pink-500', 
         popular: false,
+        badge: null
       },
     ],
     inPerson: [
-      {
-        id: 'cash' as const,
-        name: 'Efectivo',
-        description: 'Pago en el local',
-        icon: Banknote,
-        color: 'from-yellow-500 to-orange-500',
+      { 
+        id: 'cash' as const, 
+        name: 'Efectivo', 
+        description: 'Pago en el local', 
+        icon: Banknote, 
+        color: 'from-yellow-500 to-orange-500', 
         popular: false,
-      },
-      {
-        id: 'transfer' as const,
-        name: 'Transferencia',
-        description: 'CBU/Alias disponible',
-        icon: Building,
-        color: 'from-green-500 to-emerald-500',
+        badge: 'Pago en local'
+      }, 
+      { 
+        id: 'transfer' as const, 
+        name: 'Transferencia', 
+        description: 'CBU/Alias disponible', 
+        icon: Building, 
+        color: 'from-green-500 to-emerald-500', 
         popular: false,
+        badge: 'Más usado'
       },
     ]
   };
@@ -376,11 +380,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <Icon className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex-1 text-left">
-                            <div className="flex items-center space-x-1">
+                            <div className="flex items-center space-x-2">
                               <span className="font-medium text-gray-800">{method.name}</span>
-                              {method.popular && (
-                                <span className="bg-pink-100 text-pink-700 text-xs px-1.5 py-0.5 rounded-full font-medium">
-                                  Popular
+                              {method.badge && (
+                                <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs px-2 py-0.5 rounded-full font-medium border border-pink-200/50 shadow-sm">
+                                  {method.badge}
                                 </span>
                               )}
                             </div>
@@ -422,9 +426,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                           <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center shadow-md`}>
                             <Icon className="w-5 h-5 text-white" />
                           </div>
-                          <div className="flex-1 text-left">
-                            <div className="flex items-center space-x-1">
+                          <div className="flex-1 text-left relative">
+                            <div className="flex items-center space-x-2">
                               <span className="font-medium text-gray-800">{method.name}</span>
+                              {method.badge && (
+                                <span className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 text-xs px-2 py-0.5 rounded-full font-medium border border-pink-200/50 shadow-sm">
+                                  {method.badge}
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-gray-500">{method.description}</p>
                           </div>
@@ -449,10 +458,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div className="mt-4 bg-green-50 rounded-xl p-4 border border-green-100 shadow-inner">
                   <h4 className="font-medium text-green-800 mb-3 flex items-center">
                     <Building className="w-4 h-4 mr-1" />
-                    Datos para transferencia
+                    <span className="bg-gradient-to-r from-green-700 to-emerald-700 bg-clip-text text-transparent">Datos para transferencia</span>
                   </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2 md:col-span-1 flex flex-col p-2 bg-white rounded-lg border border-green-200">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 md:col-span-1 flex flex-col p-3 bg-white rounded-lg border border-green-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                       <div className="flex justify-between items-center">
                         <p className="text-xs text-green-600 font-medium">CBU</p>
                         <button
@@ -465,7 +474,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <p className="text-sm text-green-800 font-mono truncate">0000003100010000000001</p>
                     </div>
                     
-                    <div className="col-span-2 md:col-span-1 flex flex-col p-2 bg-white rounded-lg border border-green-200">
+                    <div className="col-span-2 md:col-span-1 flex flex-col p-3 bg-white rounded-lg border border-green-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                       <div className="flex justify-between items-center">
                         <p className="text-xs text-green-600 font-medium">Alias</p>
                         <button
@@ -478,12 +487,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <p className="text-sm text-green-800 font-mono">CAMPI.NAILS.MP</p>
                     </div>
                     
-                    <div className="flex flex-col p-2 bg-white rounded-lg border border-green-200">
+                    <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                       <p className="text-xs text-green-600 font-medium">Titular</p>
                       <p className="text-sm text-green-800">Camila Nails</p>
                     </div>
                     
-                    <div className="flex flex-col p-2 bg-white rounded-lg border border-green-200">
+                    <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                       <p className="text-xs text-green-600 font-medium">Banco</p>
                       <p className="text-sm text-green-800">Mercado Pago</p>
                     </div>
@@ -492,7 +501,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   {/* Subir comprobante */}
                   <div className="mt-3">
                     <label className="block text-xs font-medium text-green-800 mb-2">
-                      Subir comprobante de transferencia
+                      <span className="bg-gradient-to-r from-green-700 to-emerald-700 bg-clip-text text-transparent">Subir comprobante de transferencia</span>
                     </label>
                     
                     {transferReceiptPreview ? (
@@ -514,11 +523,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       </div>
                     ) : (
                       <div 
-                        className="border-2 border-dashed border-green-300 rounded-lg p-3 text-center cursor-pointer hover:bg-green-50 transition-colors"
+                        className="border-2 border-dashed border-green-300 rounded-lg p-4 text-center cursor-pointer hover:bg-green-50 transition-all duration-300 transform hover:scale-[1.02]"
                         onClick={() => document.getElementById('receipt-upload')?.click()}
                       >
-                        <Camera className="w-5 h-5 text-green-500 mx-auto mb-1" />
-                        <p className="text-xs text-green-700">Haz clic para subir el comprobante</p>
+                        <Camera className="w-6 h-6 text-green-500 mx-auto mb-2" />
+                        <p className="text-sm text-green-700 font-medium">Haz clic para subir el comprobante</p>
+                        <p className="text-xs text-green-500 mt-1">JPG, PNG o PDF</p>
                       </div>
                     )}
                     
@@ -538,10 +548,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div className="mt-4 bg-yellow-50 rounded-xl p-4 border border-yellow-100 shadow-inner">
                   <h4 className="font-medium text-yellow-800 mb-3 flex items-center">
                     <Banknote className="w-4 h-4 mr-1" />
-                    Información importante
+                    <span className="bg-gradient-to-r from-yellow-700 to-amber-700 bg-clip-text text-transparent">Información importante</span>
                   </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col p-2 bg-white rounded-lg border border-yellow-200">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col p-3 bg-white rounded-lg border border-yellow-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                       <div className="flex items-center space-x-1 mb-1">
                         <DollarSign className="w-3 h-3 text-yellow-600" />
                         <p className="text-xs font-medium text-yellow-800">Monto</p>
@@ -551,7 +561,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       </p>
                     </div>
                     
-                    <div className="flex flex-col p-2 bg-white rounded-lg border border-yellow-200">
+                    <div className="flex flex-col p-3 bg-white rounded-lg border border-yellow-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                       <div className="flex items-center space-x-1 mb-1">
                         <Clock className="w-3 h-3 text-yellow-600" />
                         <p className="text-xs font-medium text-yellow-800">Llega antes</p>
@@ -561,7 +571,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       </p>
                     </div>
                     
-                    <div className="col-span-2 flex flex-col p-2 bg-white rounded-lg border border-yellow-200">
+                    <div className="col-span-2 flex flex-col p-3 bg-white rounded-lg border border-yellow-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                       <div className="flex items-center space-x-1 mb-1">
                         <AlertCircle className="w-3 h-3 text-yellow-600" />
                         <p className="text-xs font-medium text-yellow-800">Importante</p>

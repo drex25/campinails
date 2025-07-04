@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* Import a more modern font */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,7 +9,7 @@
 
 @layer base {
   body {
-    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    font-family: 'Outfit', 'Montserrat', 'Inter', system-ui, sans-serif;
     background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #f3e8ff 100%);
     color: #374151;
     line-height: 1.6;
@@ -17,6 +17,10 @@
   
   * {
     box-sizing: border-box;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', 'Outfit', system-ui, sans-serif;
   }
 }
 
@@ -38,7 +42,7 @@
   }
   
   .card {
-    @apply bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-white/50;
+    @apply bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-white/50 relative overflow-hidden;
   }
   
   .input-field {
@@ -59,6 +63,10 @@
   
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-gradient-x {
+    animation: gradient-x 3s ease infinite;
   }
   
   .animate-shimmer {
@@ -84,6 +92,15 @@
   }
 }
 
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);
@@ -91,6 +108,14 @@
   100% {
     transform: translateX(200%);
   }
+}
+
+.bg-size-200 {
+  background-size: 200% 200%;
+}
+
+.bg-size-300 {
+  background-size: 300% 300%;
 }
 
 /* Custom scrollbar */
@@ -214,12 +239,25 @@
   box-shadow: 0 0 30px rgba(236, 72, 153, 0.3);
 }
 
+.shadow-glow-blue {
+  box-shadow: 0 0 30px rgba(96, 165, 250, 0.3);
+}
+.shadow-glow-green {
+  box-shadow: 0 0 30px rgba(52, 211, 153, 0.3);
+}
 /* New glass card effect */
 .glass-card {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+}
+
+/* Frosted glass effect */
+.frosted-glass {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* Neumorphism effect */
@@ -240,6 +278,11 @@
 /* Utility for skewing elements */
 .skew-x-30 {
   transform: skewX(30deg);
+}
+
+/* 3D button effect */
+.btn-3d {
+  box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.2);
 }
 
 /* Responsive utilities */

@@ -5,8 +5,8 @@ import * as yup from 'yup';
 import { format, addDays, parseISO, parse, addMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { appointmentService, serviceService, timeSlotService, employeeService } from '../services/api';
-import type { Service, TimeSlot, Employee, Appointment } from '../types';
-import { Calendar, Clock, User, Phone, Mail, MessageSquare, Sparkles, CheckCircle, ArrowRight, ArrowLeft, CreditCard, Camera, Image, Trash2 } from 'lucide-react';
+import type { Service, TimeSlot, Employee, Appointment, Client } from '../types';
+import { Calendar, Clock, User, Phone, Mail, MessageSquare, Sparkles, CheckCircle, ArrowRight, ArrowLeft, CreditCard, Camera, Image, Trash2, Star, Heart, Scissors } from 'lucide-react';
 import { Preloader } from './Preloader';
 import { PaymentModal } from './PaymentModal';
 
@@ -48,6 +48,8 @@ export const AppointmentForm: React.FC = () => {
   const [showPendingMessage, setShowPendingMessage] = useState(false);
   const [referencePhoto, setReferencePhoto] = useState<File | null>(null);
   const [referencePhotoPreview, setReferencePhotoPreview] = useState<string | null>(null);
+  const [recentClients, setRecentClients] = useState<Client[]>([]);
+  const [showRecentClients, setShowRecentClients] = useState(false);
 
   const {
     register,
@@ -64,6 +66,7 @@ export const AppointmentForm: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       setIsInitialLoading(true);
+      setShowRecentClients(localStorage.getItem('recentClients') !== null);
       try {
         const [servicesData] = await Promise.all([
           serviceService.getPublic(),
@@ -106,6 +109,16 @@ export const AppointmentForm: React.FC = () => {
       loadAvailableSlots();
     }
   }, [selectedDate]);
+
+  // Cargar clientes recientes del localStorage
+  useEffect(() => {
+    const savedClients = localStorage.getItem('recentClients');
+    if (savedClients) {
+      try {
+        setRecentClients(JSON.parse(savedClients));
+      } catch (e) {}
+    }
+  }, []);
 
   const loadEmployeesForService = async (serviceId: number) => {
     try {
@@ -161,6 +174,19 @@ export const AppointmentForm: React.FC = () => {
     }
   };
 
+  const saveClientToRecent = (clientData: {name: string, whatsapp: string, email?: string}) => {
+    const newClient = {
+      id: Date.now(),
+      name: clientData.name,
+      whatsapp: clientData.whatsapp,
+      email: clientData.email || '',
+      is_active: true
+    };
+    
+    const updatedClients = [newClient, ...recentClients.filter(c => c.whatsapp !== clientData.whatsapp).slice(0, 4)];
+    localStorage.setItem('recentClients', JSON.stringify(updatedClients));
+  };
+
   const onSubmit = async (data: AppointmentFormData) => {
     if (!selectedDate) {
       setError('Debes seleccionar una fecha');
@@ -174,6 +200,8 @@ export const AppointmentForm: React.FC = () => {
 
     setIsLoading(true);
     setError('');
+    
+    saveClientToRecent(data);
 
     try {
       // Usar la hora del slot seleccionado
@@ -397,7 +425,7 @@ export const AppointmentForm: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50">
         {/* Animated background elements */}
         <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-pink-300/20 to-rose-300/20 rounded-full blur-3xl animate-float"></div>
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-pink-300/30 to-rose-300/30 rounded-full blur-3xl animate-float"></div>
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-rose-300/10 to-purple-300/10 rounded-full blur-3xl animate-pulse-slow"></div>
         </div>
@@ -406,12 +434,12 @@ export const AppointmentForm: React.FC = () => {
         <div className="bg-white/90 backdrop-blur-md border-b border-pink-100 sticky top-0 z-10 shadow-sm">
           <div className="max-w-4xl mx-auto px-4 py-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-white" />
+              <div className="flex items-center space-x-4 group">
+                <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-200/50 group-hover:scale-110 transition-transform duration-300">
+                  <Sparkles className="w-6 h-6 text-white animate-pulse" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent group-hover:from-rose-600 group-hover:to-pink-600 transition-all duration-300">
                     Campi Nails
                   </h1>
                   <p className="text-gray-600 text-sm">Tu momento de belleza te espera</p>
@@ -420,7 +448,7 @@ export const AppointmentForm: React.FC = () => {
               <div className="text-right">
                 <div className="text-sm text-gray-500 mb-1">Paso {['service', 'professional', 'datetime', 'details', 'confirmation'].indexOf(currentStep) + 1} de 5</div>
                 <div className="w-32 h-3 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-500 relative"
+                  <div className="h-full bg-gradient-to-r from-pink-500 via-rose-500 to-pink-500 rounded-full transition-all duration-500 relative bg-size-200 animate-gradient-x"
                        style={{ width: `${getStepProgress()}%` }}>
                     <div className="absolute inset-0 bg-white/20 overflow-hidden">
                       <div className="h-full w-20 bg-white/30 skew-x-30 animate-shimmer"></div>
@@ -437,9 +465,10 @@ export const AppointmentForm: React.FC = () => {
             {/* Step 1: Service Selection */}
             {currentStep === 'service' && (
               <div className="space-y-8">
-                <div className="text-center">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-2">¿Qué servicio te gustaría?</h2>
-                  <p className="text-gray-600">Elige el tratamiento perfecto para ti</p>
+                <div className="text-center relative">
+                  <div className="absolute -top-10 -z-10 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-pink-300/20 to-rose-300/20 rounded-full blur-xl"></div>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-700 to-rose-700 bg-clip-text text-transparent mb-2">¿Qué servicio te gustaría?</h2>
+                  <p className="text-gray-600">Elige el tratamiento perfecto para tus uñas</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -448,8 +477,8 @@ export const AppointmentForm: React.FC = () => {
                       key={service.id}
                       className={`relative bg-white rounded-3xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
                         selectedService?.id === service.id
-                          ? 'ring-4 ring-pink-300 shadow-2xl'
-                          : 'shadow-lg hover:shadow-xl'
+                          ? 'ring-4 ring-pink-300 shadow-2xl border border-pink-100'
+                          : 'shadow-lg hover:shadow-xl border border-white/50'
                       }`}
                       onClick={() => {
                         setSelectedService(service);
@@ -457,18 +486,18 @@ export const AppointmentForm: React.FC = () => {
                       }}
                     >
                       {selectedService?.id === service.id && (
-                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center">
+                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
                           <CheckCircle className="w-5 h-5 text-white" />
                         </div>
                       )}
                       
-                      <div className="flex items-start justify-between mb-4 relative">
-                        <div className="w-12 h-12 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl flex items-center justify-center shadow-md shadow-pink-100">
-                          <Sparkles className="w-6 h-6 text-pink-600" />
+                      <div className="flex items-start justify-between mb-6 relative">
+                        <div className="w-14 h-14 bg-gradient-to-r from-pink-100 to-rose-100 rounded-2xl flex items-center justify-center shadow-md shadow-pink-100">
+                          <Scissors className="w-7 h-7 text-pink-600" />
                         </div>
                         <div className="text-right relative">
-                          <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">${service.price.toLocaleString()}</div>
-                          <div className="text-sm text-gray-500 flex items-center justify-end space-x-1">
+                          <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent shadow-sm">${service.price.toLocaleString()}</div>
+                          <div className="text-sm text-gray-500 flex items-center justify-end space-x-1 mt-1">
                             <Clock className="w-3 h-3" />
                             <span>{service.duration_minutes} min</span>
                           </div>
@@ -477,14 +506,18 @@ export const AppointmentForm: React.FC = () => {
                       
                       <h3 className="text-xl font-semibold text-gray-800 mb-2">{service.name}</h3>
                       {service.description && (
-                        <p className="text-gray-600 text-sm mb-4">{service.description}</p>
+                        <p className="text-gray-600 text-sm mb-5">{service.description}</p>
                       )}
                       
                       {service.requires_deposit && (
-                        <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl p-3 border border-pink-100/50 shadow-inner">
-                          <div className="text-sm text-pink-700 flex items-center justify-between">
-                            <span className="font-medium">Seña requerida:</span>
-                            <span className="font-bold">${Math.round(service.price * service.deposit_percentage / 100).toLocaleString()} ({service.deposit_percentage}%)</span>
+                        <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl p-4 border border-pink-100/50 shadow-inner relative overflow-hidden">
+                          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-pink-200/20 rounded-full blur-lg"></div>
+                          <div className="text-sm text-pink-700 flex items-center justify-between relative">
+                            <span className="font-medium flex items-center">
+                              <CreditCard className="w-4 h-4 mr-1.5" />
+                              Seña requerida:
+                            </span>
+                            <span className="font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">${Math.round(service.price * service.deposit_percentage / 100).toLocaleString()} ({service.deposit_percentage}%)</span>
                           </div>
                         </div>
                       )}
@@ -501,9 +534,12 @@ export const AppointmentForm: React.FC = () => {
                 <div className="flex justify-center">
                   <button
                     type="button"
-                    onClick={nextStep}
+                    onClick={() => {
+                      nextStep();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={!canProceedFromService}
-                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-8 py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 shadow-lg shadow-pink-200/50"
+                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 shadow-lg shadow-pink-200/50"
                   >
                     <span>Continuar</span>
                     <ArrowRight className="w-5 h-5" />
@@ -515,8 +551,9 @@ export const AppointmentForm: React.FC = () => {
             {/* Step 2: Professional Selection */}
             {currentStep === 'professional' && (
               <div className="space-y-8">
-                <div className="text-center">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-2">¿Tienes alguna preferencia?</h2>
+                <div className="text-center relative">
+                  <div className="absolute -top-10 -z-10 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-xl"></div>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-700 to-pink-700 bg-clip-text text-transparent mb-2">¿Tienes alguna preferencia?</h2>
                   <p className="text-gray-600">Puedes elegir tu profesional favorito o dejar que asignemos el mejor disponible</p>
                 </div>
 
@@ -524,20 +561,20 @@ export const AppointmentForm: React.FC = () => {
                   <div
                     className={`bg-white rounded-3xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
                       selectedEmployee === null
-                        ? 'ring-4 ring-pink-300 shadow-2xl'
-                        : 'shadow-lg hover:shadow-xl'
+                        ? 'ring-4 ring-pink-300 shadow-2xl border border-pink-100'
+                        : 'shadow-lg hover:shadow-xl border border-white/50'
                     }`}
                     onClick={() => setSelectedEmployee(null)}
                   >
                     {selectedEmployee === null && (
-                      <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center">
+                      <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
                         <CheckCircle className="w-5 h-5 text-white" />
                       </div>
                     )}
                     
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <User className="w-8 h-8 text-purple-600" />
+                      <div className="w-20 h-20 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md">
+                        <Star className="w-10 h-10 text-purple-600" />
                       </div>
                       <h3 className="text-xl font-semibold text-gray-800 mb-2">Cualquier profesional</h3>
                       <p className="text-gray-600 text-sm">Te asignaremos el mejor profesional disponible para tu horario preferido</p>
@@ -549,24 +586,30 @@ export const AppointmentForm: React.FC = () => {
                       key={employee.id}
                       className={`bg-white rounded-3xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
                         selectedEmployee?.id === employee.id
-                          ? 'ring-4 ring-pink-300 shadow-2xl'
-                          : 'shadow-lg hover:shadow-xl'
+                          ? 'ring-4 ring-pink-300 shadow-2xl border border-pink-100'
+                          : 'shadow-lg hover:shadow-xl border border-white/50'
                       }`}
                       onClick={() => setSelectedEmployee(employee)}
                     >
                       {selectedEmployee?.id === employee.id && (
-                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center">
+                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
                           <CheckCircle className="w-5 h-5 text-white" />
                         </div>
                       )}
                       
                       <div className="text-center">
-                        <div className="w-16 h-16 bg-gradient-to-r from-pink-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <User className="w-8 h-8 text-pink-600" />
+                        <div className="w-20 h-20 bg-gradient-to-r from-pink-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md">
+                          <User className="w-10 h-10 text-pink-600" />
                         </div>
                         <h3 className="text-xl font-semibold text-gray-800 mb-2">{employee.name}</h3>
                         {employee.specialties && employee.specialties.length > 0 && (
-                          <p className="text-gray-600 text-sm">{employee.specialties.join(', ')}</p>
+                          <div className="flex flex-wrap gap-1 justify-center mt-2">
+                            {employee.specialties.map((specialty, index) => (
+                              <span key={index} className="px-2 py-1 bg-pink-50 text-pink-600 text-xs rounded-full">
+                                {specialty}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -576,17 +619,23 @@ export const AppointmentForm: React.FC = () => {
                 <div className="flex justify-between">
                   <button
                     type="button"
-                    onClick={prevStep}
-                    className="bg-white border border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2 shadow-md"
+                    onClick={() => {
+                      prevStep();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-white border border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
                     <ArrowLeft className="w-5 h-5" />
                     <span>Anterior</span>
                   </button>
                   <button
                     type="button"
-                    onClick={nextStep}
+                    onClick={() => {
+                      nextStep();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={!canProceedFromProfessional}
-                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-8 py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 shadow-lg shadow-pink-200/50"
+                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 shadow-lg shadow-pink-200/50"
                   >
                     <span>Continuar</span>
                     <ArrowRight className="w-5 h-5" />
@@ -598,15 +647,18 @@ export const AppointmentForm: React.FC = () => {
             {/* Step 3: Date & Time Selection */}
             {currentStep === 'datetime' && (
               <div className="space-y-8">
-                <div className="text-center">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-2">¿Cuándo te viene mejor?</h2>
+                <div className="text-center relative">
+                  <div className="absolute -top-10 -z-10 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-blue-300/20 to-indigo-300/20 rounded-full blur-xl"></div>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent mb-2">¿Cuándo te viene mejor?</h2>
                   <p className="text-gray-600">Selecciona tu fecha y horario preferido</p>
                 </div>
 
-                <div className="bg-white rounded-3xl p-6 shadow-lg">
+                <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-white/50">
                   <div className="flex items-center space-x-2 mb-6">
-                    <Calendar className="w-6 h-6 text-pink-600" />
-                    <h3 className="text-xl font-semibold text-gray-800">Elige tu fecha</h3>
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center shadow-md">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Elige tu fecha</h3>
                   </div>
                   
                   <div className="grid grid-cols-7 gap-2">
@@ -635,10 +687,12 @@ export const AppointmentForm: React.FC = () => {
                 </div>
 
                 {selectedDate && (
-                  <div className="bg-white rounded-3xl p-6 shadow-lg">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-white/50">
                     <div className="flex items-center space-x-2 mb-6">
-                      <Clock className="w-6 h-6 text-pink-600" />
-                      <h3 className="text-xl font-semibold text-gray-800">Horarios disponibles</h3>
+                      <div className="w-10 h-10 bg-gradient-to-r from-pink-100 to-rose-100 rounded-xl flex items-center justify-center shadow-md">
+                        <Clock className="w-5 h-5 text-pink-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">Horarios disponibles</h3>
                     </div>
                     
                     {availableSlots.length > 0 ? (
@@ -676,17 +730,23 @@ export const AppointmentForm: React.FC = () => {
                 <div className="flex justify-between">
                   <button
                     type="button"
-                    onClick={prevStep}
-                    className="bg-white border border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2 shadow-md"
+                    onClick={() => {
+                      prevStep();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-white border border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
                     <ArrowLeft className="w-5 h-5" />
                     <span>Anterior</span>
                   </button>
                   <button
                     type="button"
-                    onClick={nextStep}
+                    onClick={() => {
+                      nextStep();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={!canProceedFromDateTime}
-                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-8 py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 shadow-lg shadow-pink-200/50"
+                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 shadow-lg shadow-pink-200/50"
                   >
                     <span>Continuar</span>
                     <ArrowRight className="w-5 h-5" />
@@ -698,12 +758,42 @@ export const AppointmentForm: React.FC = () => {
             {/* Step 4: Personal Details */}
             {currentStep === 'details' && (
               <div className="space-y-8">
-                <div className="text-center">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-2">Cuéntanos sobre ti</h2>
+                <div className="text-center relative">
+                  <div className="absolute -top-10 -z-10 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-green-300/20 to-teal-300/20 rounded-full blur-xl"></div>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-green-700 to-teal-700 bg-clip-text text-transparent mb-2">Cuéntanos sobre ti</h2>
                   <p className="text-gray-600">Necesitamos algunos datos para confirmar tu turno</p>
                 </div>
 
-                <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-lg space-y-6 border border-white/50">
+                <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-lg space-y-6 border border-white/50 relative overflow-hidden">
+                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-green-200/10 to-teal-200/10 rounded-full blur-xl"></div>
+                  
+                  {/* Recent clients section */}
+                  {showRecentClients && recentClients.length > 0 && (
+                    <div className="mb-6 pb-6 border-b border-gray-100">
+                      <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                        <Heart className="w-4 h-4 text-pink-500 mr-2" />
+                        Clientes recientes
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {recentClients.map(client => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            onClick={() => {
+                              setValue('name', client.name);
+                              setValue('whatsapp', client.whatsapp);
+                              setValue('email', client.email || '');
+                            }}
+                            className="flex items-center space-x-2 px-3 py-2 bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-xl transition-colors"
+                          >
+                            <User className="w-4 h-4" />
+                            <span className="text-sm">{client.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
@@ -771,17 +861,23 @@ export const AppointmentForm: React.FC = () => {
                 <div className="flex justify-between">
                   <button
                     type="button"
-                    onClick={prevStep}
-                    className="bg-white border border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2 shadow-md"
+                    onClick={() => {
+                      prevStep();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-white border border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
                     <ArrowLeft className="w-5 h-5" />
                     <span>Anterior</span>
                   </button>
                   <button
                     type="button"
-                    onClick={nextStep}
+                    onClick={() => {
+                      nextStep();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={!canProceedFromDetails}
-                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-8 py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-pink-600 hover:to-rose-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 shadow-lg shadow-pink-200/50"
                   >
                     <span>Revisar</span>
                     <ArrowRight className="w-5 h-5" />
@@ -793,14 +889,22 @@ export const AppointmentForm: React.FC = () => {
             {/* Step 5: Confirmation */}
             {currentStep === 'confirmation' && (
               <div className="space-y-8">
-                <div className="text-center">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-2">¡Casi listo! 🎉</h2>
+                <div className="text-center relative">
+                  <div className="absolute -top-10 -z-10 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-gradient-to-br from-purple-300/20 to-indigo-300/20 rounded-full blur-xl"></div>
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-700 to-indigo-700 bg-clip-text text-transparent mb-2">¡Casi listo! 🎉</h2>
                   <p className="text-gray-600">Revisa los detalles de tu turno antes de confirmar</p>
                 </div>
 
-                <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-lg space-y-6 border border-white/50">
-                  <div className="border-b border-gray-100 pb-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Servicio seleccionado</h3>
+                <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-lg space-y-6 border border-white/50 relative overflow-hidden">
+                  <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-purple-200/10 to-indigo-200/10 rounded-full blur-xl"></div>
+                  
+                  <div className="border-b border-gray-100 pb-6 relative">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg flex items-center justify-center shadow-sm">
+                        <Scissors className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">Servicio seleccionado</h3>
+                    </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="font-medium text-gray-800">{selectedService?.name}</div>
@@ -809,7 +913,7 @@ export const AppointmentForm: React.FC = () => {
                       <div className="text-right">
                         <div className="text-xl font-bold text-gray-800">${selectedService?.price.toLocaleString()}</div>
                         {selectedService?.requires_deposit && (
-                          <div className="text-sm text-pink-600 font-medium">
+                          <div className="text-sm bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent font-medium">
                             Seña: ${Math.round((selectedService?.price || 0) * (selectedService?.deposit_percentage || 0) / 100).toLocaleString()}
                           </div>
                         )}
@@ -818,46 +922,61 @@ export const AppointmentForm: React.FC = () => {
                   </div>
 
                   <div className="border-b border-gray-100 pb-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Fecha y hora</h3>
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-xl">
-                        <Calendar className="w-5 h-5 text-pink-600" />
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center shadow-sm">
+                        <Calendar className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Fecha y hora</h3>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-xl border border-blue-100 shadow-sm">
+                        <Calendar className="w-5 h-5 text-blue-600" />
                         <span>{selectedDate && format(parseISO(selectedDate), 'EEEE, d MMMM yyyy', { locale: es })}</span>
                       </div>
-                      <div className="flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-xl">
-                        <Clock className="w-5 h-5 text-pink-600" />
+                      <div className="flex items-center space-x-2 bg-blue-50 px-3 py-2 rounded-xl border border-blue-100 shadow-sm">
+                        <Clock className="w-5 h-5 text-blue-600" />
                         <span>{selectedSlot?.start_time || "09:00"}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="border-b border-gray-100 pb-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Profesional</h3>
-                    <div className="flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-xl inline-block">
-                      <User className="w-5 h-5 text-pink-600" />
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-green-100 to-teal-100 rounded-lg flex items-center justify-center shadow-sm">
+                        <User className="w-4 h-4 text-green-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">Profesional</h3>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-green-50 px-3 py-2 rounded-xl inline-block border border-green-100 shadow-sm">
+                      <User className="w-5 h-5 text-green-600" />
                       <span>{selectedEmployee?.name || selectedSlot?.employee?.name || 'Cualquier profesional disponible'}</span>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Tus datos</h3>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-pink-100 to-rose-100 rounded-lg flex items-center justify-center shadow-sm">
+                        <User className="w-4 h-4 text-pink-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">Tus datos</h3>
+                    </div>
                     <div className="space-y-2">
-                      <div className="flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-xl inline-block">
+                      <div className="flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-xl inline-block border border-pink-100 shadow-sm">
                         <User className="w-4 h-4 text-pink-600" />
                         <span>{watch('name')}</span>
                       </div>
-                      <div className="flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-xl inline-block">
+                      <div className="flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-xl inline-block border border-pink-100 shadow-sm">
                         <Phone className="w-4 h-4 text-pink-600" />
                         <span>{watch('whatsapp')}</span>
                       </div>
                       {watch('email') && (
-                        <div className="flex items-center space-x-2 bg-gray-50 px-3 py-2 rounded-xl inline-block">
+                        <div className="flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-xl inline-block border border-pink-100 shadow-sm">
                           <Mail className="w-4 h-4 text-pink-600" />
                           <span>{watch('email')}</span>
                         </div>
                       )}
                       {watch('special_requests') && (
-                        <div className="flex items-start space-x-2 bg-gray-50 px-3 py-2 rounded-xl">
+                        <div className="flex items-start space-x-2 bg-pink-50 px-3 py-2 rounded-xl border border-pink-100 shadow-sm">
                           <MessageSquare className="w-4 h-4 text-pink-600 mt-0.5" />
                           <span className="text-sm">{watch('special_requests')}</span>
                         </div>
@@ -865,14 +984,14 @@ export const AppointmentForm: React.FC = () => {
                       
                       {referencePhotoPreview && (
                         <div className="mt-2">
-                          <p className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                          <p className="text-sm font-medium text-pink-700 mb-2 flex items-center">
                             <Image className="w-4 h-4 text-pink-600 mr-2" />
                             Foto de referencia:
                           </p>
                           <img 
                             src={referencePhotoPreview} 
                             alt="Referencia" 
-                            className="w-full h-48 object-contain border border-gray-200 rounded-xl"
+                            className="w-full h-48 object-contain border border-pink-100 rounded-xl shadow-md"
                           />
                         </div>
                       )}
@@ -881,17 +1000,19 @@ export const AppointmentForm: React.FC = () => {
                   
                   {/* Reference Photo Upload */}
                   <div>
-                    <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
-                      <Image className="w-4 h-4" />
-                      <span>Foto de referencia (opcional)</span>
-                    </label>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-yellow-100 to-amber-100 rounded-lg flex items-center justify-center shadow-sm">
+                        <Image className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">Foto de referencia (opcional)</h3>
+                    </div>
                     
                     {referencePhotoPreview ? (
                       <div className="relative mb-3">
                         <img 
                           src={referencePhotoPreview} 
                           alt="Referencia" 
-                          className="w-full h-48 object-contain border border-gray-200 rounded-xl"
+                          className="w-full h-48 object-contain border border-amber-100 rounded-xl shadow-md"
                         />
                         <button
                           type="button"
@@ -906,12 +1027,12 @@ export const AppointmentForm: React.FC = () => {
                       </div>
                     ) : (
                       <div 
-                        className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                        className="border-2 border-dashed border-amber-200 rounded-xl p-6 text-center cursor-pointer hover:bg-amber-50 transition-colors"
                         onClick={() => document.getElementById('photo-upload')?.click()}
                       >
-                        <Camera className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-                        <p className="text-sm text-gray-700">Haz clic para subir una foto de referencia</p>
-                        <p className="text-xs text-gray-500 mt-1">Formatos: JPG, PNG</p>
+                        <Camera className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                        <p className="text-sm text-amber-700">Haz clic para subir una foto de referencia</p>
+                        <p className="text-xs text-amber-500 mt-1">Formatos: JPG, PNG</p>
                       </div>
                     )}
                     
@@ -925,41 +1046,75 @@ export const AppointmentForm: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-3xl p-6">
-                  <h3 className="font-semibold text-blue-800 mb-2">📋 Información importante</h3>
-                  <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• Te contactaremos por WhatsApp para confirmar tu turno</li>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-3xl p-6 border border-blue-100 shadow-inner relative overflow-hidden">
+                  <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-200/10 to-indigo-200/10 rounded-full blur-xl"></div>
+                  
+                  <div className="flex items-center space-x-2 mb-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center shadow-sm">
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">Información importante</h3>
+                  </div>
+                  
+                  <ul className="text-sm text-blue-700 space-y-2 relative">
+                    <li className="flex items-start">
+                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-2 mt-0.5">
+                        <span className="text-blue-600 text-xs">1</span>
+                      </div>
+                      Te contactaremos por WhatsApp para confirmar tu turno
+                    </li>
                     {selectedService?.requires_deposit && (
-                      <li>• Deberás abonar la seña para asegurar tu reserva</li>
+                      <li className="flex items-start">
+                        <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-2 mt-0.5">
+                          <span className="text-blue-600 text-xs">2</span>
+                        </div>
+                        Deberás abonar la seña para asegurar tu reserva
+                      </li>
                     )}
-                    <li>• Puedes reprogramar hasta 2 veces sin costo adicional</li>
-                    <li>• Cancelaciones con menos de 24hs de anticipación pierden la seña</li>
+                    <li className="flex items-start">
+                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-2 mt-0.5">
+                        <span className="text-blue-600 text-xs">3</span>
+                      </div>
+                      Puedes reprogramar hasta 2 veces sin costo adicional
+                    </li>
+                    <li className="flex items-start">
+                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-2 mt-0.5">
+                        <span className="text-blue-600 text-xs">4</span>
+                      </div>
+                      Cancelaciones con menos de 24hs de anticipación pierden la seña
+                    </li>
                   </ul>
                 </div>
 
                 {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                    <p className="text-red-600 text-sm">{error}</p>
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4 animate-pulse">
+                    <p className="text-red-600 text-sm flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <span>{error}</span>
+                    </p>
                   </div>
                 )}
 
                 <div className="flex justify-between">
                   <button
                     type="button"
-                    onClick={prevStep}
-                    className="bg-white border border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2 shadow-md"
+                    onClick={() => {
+                      prevStep();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-white border border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
                     <ArrowLeft className="w-5 h-5" />
                     <span>Anterior</span>
                   </button>
                   <button
                     type="submit"
-                    onClick={nextStep}
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-4 rounded-2xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-200/50"
+                    disabled={isLoading}
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-10 py-4 rounded-2xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-300 transform hover:scale-105 flex items-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-200/50"
                   >
                     {isLoading ? (
                       <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                         <span>Procesando...</span>
                       </>
                     ) : paymentRequired ? (
