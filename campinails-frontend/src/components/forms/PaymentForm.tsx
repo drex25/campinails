@@ -187,90 +187,92 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
 
         {/* Detalles del turno seleccionado */}
         {selectedAppointment && (
-          <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Cliente:</span>
-              <span className="font-medium text-gray-800">{selectedAppointment.client?.name}</span>
+          <>
+            <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Cliente:</span>
+                <span className="font-medium text-gray-800">{selectedAppointment.client?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Servicio:</span>
+                <span className="font-medium text-gray-800">{selectedAppointment.service?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Fecha:</span>
+                <span className="font-medium text-gray-800">
+                  {new Date(selectedAppointment.scheduled_at).toLocaleDateString('es-ES', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Hora:</span>
+                <span className="font-medium text-gray-800">
+                  {new Date(selectedAppointment.scheduled_at).toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-gray-200">
+                <span className="text-sm font-medium text-gray-700">Total:</span>
+                <span className="font-bold text-gray-800">{formatCurrency(selectedAppointment.total_price)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium text-gray-700">Seña:</span>
+                <span className="font-bold text-emerald-600">{formatCurrency(selectedAppointment.deposit_amount)}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Servicio:</span>
-              <span className="font-medium text-gray-800">{selectedAppointment.service?.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Fecha:</span>
-              <span className="font-medium text-gray-800">
-                {new Date(selectedAppointment.scheduled_at).toLocaleDateString('es-ES', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Hora:</span>
-              <span className="font-medium text-gray-800">
-                {new Date(selectedAppointment.scheduled_at).toLocaleTimeString('es-ES', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between pt-2 border-t border-gray-200">
-              <span className="text-sm font-medium text-gray-700">Total:</span>
-              <span className="font-bold text-gray-800">{formatCurrency(selectedAppointment.total_price)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium text-gray-700">Seña:</span>
-              <span className="font-bold text-emerald-600">{formatCurrency(selectedAppointment.deposit_amount)}</span>
-            </div>
-          </div>
-          
-          {/* Comprobante de transferencia */}
-          {watchedPaymentMethod === 'transfer' && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Comprobante de transferencia
-              </label>
-              
-              {transferReceiptPreview ? (
-                <div className="relative mb-3">
-                  <img 
-                    src={transferReceiptPreview} 
-                    alt="Comprobante" 
-                    className="w-full h-48 object-contain border border-gray-200 rounded-xl"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTransferReceipt(null);
-                      setTransferReceiptPreview(null);
-                    }}
-                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
+            
+            {/* Comprobante de transferencia */}
+            {watchedPaymentMethod === 'transfer' && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comprobante de transferencia
+                </label>
+                
+                {transferReceiptPreview ? (
+                  <div className="relative mb-3">
+                    <img 
+                      src={transferReceiptPreview} 
+                      alt="Comprobante" 
+                      className="w-full h-48 object-contain border border-gray-200 rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTransferReceipt(null);
+                        setTransferReceiptPreview(null);
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div 
+                    className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => document.getElementById('receipt-upload')?.click()}
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div 
-                  className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => document.getElementById('receipt-upload')?.click()}
-                >
-                  <Camera className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-                  <p className="text-sm text-gray-700">Haz clic para subir el comprobante</p>
-                  <p className="text-xs text-gray-500 mt-1">Formatos: JPG, PNG o PDF</p>
-                </div>
-              )}
-              
-              <input
-                id="receipt-upload"
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </div>
-          )}
+                    <Camera className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                    <p className="text-sm text-gray-700">Haz clic para subir el comprobante</p>
+                    <p className="text-xs text-gray-500 mt-1">Formatos: JPG, PNG o PDF</p>
+                  </div>
+                )}
+                
+                <input
+                  id="receipt-upload"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* Método de pago */}
