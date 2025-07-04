@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
-import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock } from 'lucide-react';
+import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock, CreditCard as CardIcon, Wallet, Banknote, Building, ArrowRight } from 'lucide-react';
 import type { Appointment } from '../types';
 import { paymentService } from '../services/api';
 
@@ -27,40 +27,48 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [transferReceiptPreview, setTransferReceiptPreview] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
 
-  const paymentMethods = [
-    {
-      id: 'mercadopago' as const,
-      name: 'MercadoPago',
-      description: 'Tarjetas, transferencia o efectivo',
-      icon: Smartphone,
-      color: 'from-blue-500 to-indigo-500',
-      popular: true,
-    },
-    {
-      id: 'cash' as const,
-      name: 'Efectivo',
-      description: 'Pago en el local',
-      icon: DollarSign,
-      color: 'from-yellow-500 to-orange-500',
-      popular: false,
-    },
-    {
-      id: 'stripe' as const,
-      name: 'Tarjeta de Crédito',
-      description: 'Visa, Mastercard, American Express',
-      icon: CreditCard,
-      color: 'from-purple-500 to-pink-500',
-      popular: false,
-    },
-    {
-      id: 'transfer' as const,
-      name: 'Transferencia Bancaria',
-      description: 'CBU/Alias disponible',
-      icon: DollarSign,
-      color: 'from-green-500 to-emerald-500',
-      popular: false,
-    },
-  ];
+  // Métodos de pago agrupados por categoría
+  const paymentMethodGroups = {
+    online: [
+      {
+        id: 'mercadopago' as const,
+        name: 'MercadoPago',
+        description: 'Tarjetas, QR, billeteras',
+        icon: Smartphone,
+        color: 'from-blue-500 to-indigo-500',
+        popular: true,
+      },
+      {
+        id: 'stripe' as const,
+        name: 'Tarjeta de Crédito',
+        description: 'Visa, Mastercard, Amex',
+        icon: CreditCard,
+        color: 'from-purple-500 to-pink-500',
+        popular: false,
+      },
+    ],
+    inPerson: [
+      {
+        id: 'cash' as const,
+        name: 'Efectivo',
+        description: 'Pago en el local',
+        icon: Banknote,
+        color: 'from-yellow-500 to-orange-500',
+        popular: false,
+      },
+      {
+        id: 'transfer' as const,
+        name: 'Transferencia',
+        description: 'CBU/Alias disponible',
+        icon: Building,
+        color: 'from-green-500 to-emerald-500',
+        popular: false,
+      },
+    ]
+  };
+  
+  // Combinar todos los métodos para facilitar la búsqueda
+  const allPaymentMethods = [...paymentMethodGroups.online, ...paymentMethodGroups.inPerson];
 
   const handlePayment = async () => {
     setIsProcessing(true);
@@ -276,268 +284,304 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Confirmar tu Turno" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Confirmar tu Turno" size="xl">
       <div className="space-y-6">
-        {/* Resumen del turno */}
-        <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl p-6 border border-pink-100">
-          <h3 className="font-semibold text-gray-800 mb-4">Resumen de tu turno</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Servicio:</span>
-              <span className="font-medium text-gray-800">{appointment.service?.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Fecha:</span>
-              <span className="font-medium text-gray-800">
-                {new Date(appointment.scheduled_at).toLocaleDateString('es-ES', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Hora:</span>
-              <span className="font-medium text-gray-800">
-                {new Date(appointment.scheduled_at).toLocaleTimeString('es-ES', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </span>
-            </div>
-            <div className="border-t border-pink-200 pt-3 mt-3">
-              <div className="flex justify-between text-lg">
-                <span className="font-semibold text-gray-800">Seña a pagar:</span>
-                <span className="font-bold text-pink-600">
-                  {formatCurrency(appointment.deposit_amount)}
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Total del servicio: {formatCurrency(appointment.total_price)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Métodos de pago */}
-        <div className="mb-4">
-          <h3 className="font-semibold text-gray-800 mb-4">Elige tu método de pago</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {paymentMethods.map((method) => {
-              const Icon = method.icon;
-              return (
-                <button
-                  key={method.id}
-                  onClick={() => setSelectedMethod(method.id)}
-                  className={`w-full p-4 rounded-2xl border-2 transition-all duration-200 ${
-                    selectedMethod === method.id
-                      ? 'border-pink-300 bg-pink-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <div className="flex items-center space-x-1">
-                        <span className="font-medium text-gray-800">{method.name}</span>
-                        {method.popular && (
-                          <span className="bg-pink-100 text-pink-700 text-xs px-1.5 py-0.5 rounded-full font-medium">
-                            Popular
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">{method.description}</p>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 ${
-                      selectedMethod === method.id
-                        ? 'border-pink-500 bg-pink-500'
-                        : 'border-gray-300'
-                    }`}>
-                      {selectedMethod === method.id && (
-                        <div className="w-full h-full rounded-full bg-white scale-50" />
-                      )}
-                    </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Columna 1: Resumen del turno */}
+          <div className="md:col-span-1">
+            <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl p-5 border border-pink-100 h-full">
+              <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
+                <Calendar className="w-5 h-5 mr-2 text-pink-500" />
+                Resumen del turno
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Servicio:</span>
+                  <span className="font-medium text-gray-800">{appointment.service?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Fecha:</span>
+                  <span className="font-medium text-gray-800">
+                    {new Date(appointment.scheduled_at).toLocaleDateString('es-ES', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long'
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Hora:</span>
+                  <span className="font-medium text-gray-800">
+                    {new Date(appointment.scheduled_at).toLocaleTimeString('es-ES', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+                <div className="border-t border-pink-200 pt-3 mt-3">
+                  <div className="flex justify-between text-lg">
+                    <span className="font-semibold text-gray-800">Seña:</span>
+                    <span className="font-bold text-pink-600">
+                      {formatCurrency(appointment.deposit_amount)}
+                    </span>
                   </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Información de seguridad */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-            <div className="flex items-center space-x-3">
-              <Shield className="w-5 h-5 text-blue-600" />
-              <div>
-                <h4 className="font-medium text-blue-800">Pago 100% Seguro</h4>
-                <p className="text-xs text-blue-600">
-                  Tus datos están protegidos con encriptación SSL
-                </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Total: {formatCurrency(appointment.total_price)}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Información de seguridad */}
+              <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-100">
+                <div className="flex items-center space-x-2">
+                  <Shield className="w-4 h-4 text-blue-600" />
+                  <p className="text-xs text-blue-700 font-medium">
+                    Pago 100% Seguro con encriptación SSL
+                  </p>
+                </span>
               </div>
             </div>
           </div>
           
-          <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-5 h-5 text-purple-600" />
-              <div>
-                <h4 className="font-medium text-purple-800">Confirmación Inmediata</h4>
-                <p className="text-xs text-purple-600">
-                  Recibirás confirmación por WhatsApp
-                </p>
+          {/* Columna 2-3: Métodos de pago */}
+          <div className="md:col-span-2">
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
+                <Wallet className="w-5 h-5 mr-2 text-pink-500" />
+                Elige tu método de pago
+              </h3>
+              
+              {/* Métodos de pago en línea */}
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Pago en línea</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {paymentMethodGroups.online.map((method) => {
+                    const Icon = method.icon;
+                    return (
+                      <button
+                        key={method.id}
+                        onClick={() => setSelectedMethod(method.id)}
+                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 ${
+                          selectedMethod === method.id
+                            ? 'border-pink-300 bg-pink-50 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
+                            <Icon className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div className="flex items-center space-x-1">
+                              <span className="font-medium text-gray-800">{method.name}</span>
+                              {method.popular && (
+                                <span className="bg-pink-100 text-pink-700 text-xs px-1.5 py-0.5 rounded-full font-medium">
+                                  Popular
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">{method.description}</p>
+                          </div>
+                          <div className={`w-5 h-5 rounded-full border-2 ${
+                            selectedMethod === method.id
+                              ? 'border-pink-500 bg-pink-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {selectedMethod === method.id && (
+                              <div className="w-full h-full rounded-full bg-white scale-50" />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+              
+              {/* Métodos de pago presencial */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Pago presencial</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {paymentMethodGroups.inPerson.map((method) => {
+                    const Icon = method.icon;
+                    return (
+                      <button
+                        key={method.id}
+                        onClick={() => setSelectedMethod(method.id)}
+                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 ${
+                          selectedMethod === method.id
+                            ? 'border-pink-300 bg-pink-50 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
+                            <Icon className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div className="flex items-center space-x-1">
+                              <span className="font-medium text-gray-800">{method.name}</span>
+                            </div>
+                            <p className="text-xs text-gray-500">{method.description}</p>
+                          </div>
+                          <div className={`w-5 h-5 rounded-full border-2 ${
+                            selectedMethod === method.id
+                              ? 'border-pink-500 bg-pink-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {selectedMethod === method.id && (
+                              <div className="w-full h-full rounded-full bg-white scale-50" />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Información adicional según método */}
+              {selectedMethod === 'transfer' && showTransferInfo && (
+                <div className="mt-4 bg-green-50 rounded-xl p-4 border border-green-100">
+                  <h4 className="font-medium text-green-800 mb-3 flex items-center">
+                    <Building className="w-4 h-4 mr-1" />
+                    Datos para transferencia
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2 md:col-span-1 flex flex-col p-2 bg-white rounded-lg border border-green-200">
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs text-green-600 font-medium">CBU</p>
+                        <button
+                          onClick={() => copyToClipboard('0000003100010000000001', 'CBU')}
+                          className="p-1 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <p className="text-sm text-green-800 font-mono truncate">0000003100010000000001</p>
+                    </div>
+                    
+                    <div className="col-span-2 md:col-span-1 flex flex-col p-2 bg-white rounded-lg border border-green-200">
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs text-green-600 font-medium">Alias</p>
+                        <button
+                          onClick={() => copyToClipboard('CAMPI.NAILS.MP', 'Alias')}
+                          className="p-1 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <p className="text-sm text-green-800 font-mono">CAMPI.NAILS.MP</p>
+                    </div>
+                    
+                    <div className="flex flex-col p-2 bg-white rounded-lg border border-green-200">
+                      <p className="text-xs text-green-600 font-medium">Titular</p>
+                      <p className="text-sm text-green-800">Camila Nails</p>
+                    </div>
+                    
+                    <div className="flex flex-col p-2 bg-white rounded-lg border border-green-200">
+                      <p className="text-xs text-green-600 font-medium">Banco</p>
+                      <p className="text-sm text-green-800">Mercado Pago</p>
+                    </div>
+                  </div>
+                  
+                  {/* Subir comprobante */}
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-green-800 mb-2">
+                      Subir comprobante de transferencia
+                    </label>
+                    
+                    {transferReceiptPreview ? (
+                      <div className="relative mb-2">
+                        <img 
+                          src={transferReceiptPreview} 
+                          alt="Comprobante" 
+                          className="w-full h-32 object-contain border border-green-200 rounded-lg"
+                        />
+                        <button
+                          onClick={() => {
+                            setTransferReceipt(null);
+                            setTransferReceiptPreview(null);
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div 
+                        className="border-2 border-dashed border-green-300 rounded-lg p-3 text-center cursor-pointer hover:bg-green-50 transition-colors"
+                        onClick={() => document.getElementById('receipt-upload')?.click()}
+                      >
+                        <Camera className="w-5 h-5 text-green-500 mx-auto mb-1" />
+                        <p className="text-xs text-green-700">Haz clic para subir el comprobante</p>
+                      </div>
+                    )}
+                    
+                    <input
+                      id="receipt-upload"
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {/* Información para pago en efectivo */}
+              {selectedMethod === 'cash' && showCashInfo && (
+                <div className="mt-4 bg-yellow-50 rounded-xl p-4 border border-yellow-100">
+                  <h4 className="font-medium text-yellow-800 mb-3 flex items-center">
+                    <Banknote className="w-4 h-4 mr-1" />
+                    Información importante
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col p-2 bg-white rounded-lg border border-yellow-200">
+                      <div className="flex items-center space-x-1 mb-1">
+                        <DollarSign className="w-3 h-3 text-yellow-600" />
+                        <p className="text-xs font-medium text-yellow-800">Monto</p>
+                      </div>
+                      <p className="text-sm text-yellow-700">
+                        {formatCurrency(appointment.deposit_amount)}
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-col p-2 bg-white rounded-lg border border-yellow-200">
+                      <div className="flex items-center space-x-1 mb-1">
+                        <Clock className="w-3 h-3 text-yellow-600" />
+                        <p className="text-xs font-medium text-yellow-800">Llega antes</p>
+                      </div>
+                      <p className="text-sm text-yellow-700">
+                        10 minutos
+                      </p>
+                    </div>
+                    
+                    <div className="col-span-2 flex flex-col p-2 bg-white rounded-lg border border-yellow-200">
+                      <div className="flex items-center space-x-1 mb-1">
+                        <AlertCircle className="w-3 h-3 text-yellow-600" />
+                        <p className="text-xs font-medium text-yellow-800">Importante</p>
+                      </div>
+                      <p className="text-sm text-yellow-700">
+                        Sin el pago de la seña, no se garantiza la reserva del turno
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Mensaje de error */}
+              {error && (
+                <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Información adicional según método */}
-        {selectedMethod === 'transfer' && (
-          <div className="bg-green-50 rounded-2xl p-5 border border-green-100">
-            <div className="flex items-start space-x-3 mb-4">
-              <AlertCircle className="w-5 h-5 text-green-600 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-medium text-green-800 mb-3">Datos para transferencia</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200">
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-xs text-green-600 font-medium">CBU</p>
-                      <button
-                        onClick={() => copyToClipboard('0000003100010000000001', 'CBU')}
-                        className="p-1 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-                    <p className="text-sm text-green-800 font-mono">0000003100010000000001</p>
-                  </div>
-                  
-                  <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200">
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-xs text-green-600 font-medium">Alias</p>
-                      <button
-                        onClick={() => copyToClipboard('CAMPI.NAILS.MP', 'Alias')}
-                        className="p-1 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-                    <p className="text-sm text-green-800 font-mono">CAMPI.NAILS.MP</p>
-                  </div>
-                  
-                  <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200">
-                    <p className="text-xs text-green-600 font-medium mb-1">Titular</p>
-                    <p className="text-sm text-green-800">Camila Nails</p>
-                  </div>
-                  
-                  <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200">
-                    <p className="text-xs text-green-600 font-medium mb-1">Banco</p>
-                    <p className="text-sm text-green-800">Mercado Pago</p>
-                  </div>
-                </div>
-                
-                {/* Subir comprobante */}
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-green-800 mb-2">
-                    Subir comprobante de transferencia
-                  </label>
-                  
-                  {transferReceiptPreview ? (
-                    <div className="relative mb-3">
-                      <img 
-                        src={transferReceiptPreview} 
-                        alt="Comprobante" 
-                        className="w-full h-48 object-contain border border-green-200 rounded-xl"
-                      />
-                      <button
-                        onClick={() => {
-                          setTransferReceipt(null);
-                          setTransferReceiptPreview(null);
-                        }}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div 
-                      className="border-2 border-dashed border-green-300 rounded-xl p-6 text-center cursor-pointer hover:bg-green-50 transition-colors"
-                      onClick={() => document.getElementById('receipt-upload')?.click()}
-                    >
-                      <Camera className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-sm text-green-700">Haz clic para subir el comprobante</p>
-                      <p className="text-xs text-green-600 mt-1">Formatos: JPG, PNG o PDF</p>
-                    </div>
-                  )}
-                  
-                  <input
-                    id="receipt-upload"
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Información para pago en efectivo */}
-        {selectedMethod === 'cash' && (
-          <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-100">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-medium text-yellow-800 mb-3">Información importante</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="bg-white p-3 rounded-lg border border-yellow-200">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <DollarSign className="w-4 h-4 text-yellow-600" />
-                      <p className="text-sm font-medium text-yellow-800">Monto a pagar</p>
-                    </div>
-                    <p className="text-sm text-yellow-700">
-                      {formatCurrency(appointment.deposit_amount)} en efectivo al llegar
-                    </p>
-                  </div>
-                  
-                  <div className="bg-white p-3 rounded-lg border border-yellow-200">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Clock className="w-4 h-4 text-yellow-600" />
-                      <p className="text-sm font-medium text-yellow-800">Llega antes</p>
-                    </div>
-                    <p className="text-sm text-yellow-700">
-                      10 minutos antes para realizar el pago
-                    </p>
-                  </div>
-                  
-                  <div className="bg-white p-3 rounded-lg border border-yellow-200 md:col-span-2">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <AlertCircle className="w-4 h-4 text-yellow-600" />
-                      <p className="text-sm font-medium text-yellow-800">Importante</p>
-                    </div>
-                    <p className="text-sm text-yellow-700">
-                      Sin el pago de la seña, no se garantiza la reserva del turno
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Mensaje de error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-            <p className="text-red-600 text-sm">{error}</p>
-          </div>
-        )}
-
         {/* Botones de acción */}
-        <div className="flex space-x-3 pt-4">
+        <div className="flex space-x-3">
           <button
             onClick={onClose}
             className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors duration-200 font-medium"
@@ -546,30 +590,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </button>
           
           {selectedMethod === 'transfer' && showTransferInfo ? (
-            <>
-              <button
-                onClick={() => {
-                  if (!transferReceipt) {
-                    setError('Debes subir un comprobante de transferencia');
-                    return;
-                  }
-                  handleTransferPayment();
-                }}
-                disabled={isProcessing}
-                className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Registrando...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Confirmar Transferencia</span>
-                  </>
-                )}
-              </button>
-            </>
+            <button
+              onClick={() => {
+                if (!transferReceipt) {
+                  setError('Debes subir un comprobante de transferencia');
+                  return;
+                }
+                handleTransferPayment();
+              }}
+              disabled={isProcessing}
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Registrando...</span>
+                </>
+              ) : (
+                <>
+                  <span>Confirmar Transferencia</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
           ) : selectedMethod === 'cash' && showCashInfo ? (
             <button
               onClick={handleCashPayment}
@@ -584,6 +627,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               ) : (
                 <>
                   <span>Confirmar Pago en Efectivo</span>
+                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
@@ -601,14 +645,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               ) : selectedMethod === 'transfer' ? (
                 <>
                   <span>Pagar con Transferencia</span>
+                  <ArrowRight className="w-4 h-4" />
                 </>
               ) : selectedMethod === 'cash' ? (
                 <>
                   <span>Pagar en Efectivo</span>
+                  <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>
                   <span>Pagar {formatCurrency(appointment.deposit_amount)}</span>
+                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
