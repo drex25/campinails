@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
-import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X } from 'lucide-react';
+import { CreditCard, Smartphone, DollarSign, Shield, CheckCircle, AlertCircle, Copy, ExternalLink, Camera, X, Clock } from 'lucide-react';
 import type { Appointment } from '../types';
 import { paymentService } from '../services/api';
 
@@ -480,7 +480,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     onChange={handleFileChange}
                     className="hidden"
                   />
-                  </div>
                 </div>
               </div>
             </div>
