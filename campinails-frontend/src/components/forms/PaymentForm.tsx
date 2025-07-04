@@ -4,7 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Modal } from '../ui/Modal';
 import { CreditCard, DollarSign, Smartphone, Save, X, Camera } from 'lucide-react';
-import { appointmentService } from '../../services/api';
+import { appointmentService, paymentService } from '../../services/api';
 import type { Appointment } from '../../types';
 
 const schema = yup.object({
@@ -303,7 +303,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
                     <Icon className="w-5 h-5 text-white" />
                   </div>
-                  <span>Monto a pagar</span>
+                  <span className="font-medium text-gray-800">{method.name}</span>
                 </label>
               );
             })}
