@@ -321,9 +321,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         </div>
 
         {/* Métodos de pago */}
-        <div>
+        <div className="mb-4">
           <h3 className="font-semibold text-gray-800 mb-4">Elige tu método de pago</h3>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {paymentMethods.map((method) => {
               const Icon = method.icon;
               return (
@@ -336,20 +336,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${method.color} flex items-center justify-center`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1 text-left">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1">
                         <span className="font-medium text-gray-800">{method.name}</span>
                         {method.popular && (
-                          <span className="bg-pink-100 text-pink-700 text-xs px-2 py-1 rounded-full font-medium">
+                          <span className="bg-pink-100 text-pink-700 text-xs px-1.5 py-0.5 rounded-full font-medium">
                             Popular
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600">{method.description}</p>
+                      <p className="text-xs text-gray-500">{method.description}</p>
                     </div>
                     <div className={`w-5 h-5 rounded-full border-2 ${
                       selectedMethod === method.id
@@ -368,139 +368,163 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         </div>
 
         {/* Información de seguridad */}
-        <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-          <div className="flex items-center space-x-3">
-            <Shield className="w-6 h-6 text-blue-600" />
-            <div>
-              <h4 className="font-medium text-blue-800">Pago 100% Seguro</h4>
-              <p className="text-sm text-blue-600">
-                Tus datos están protegidos con encriptación SSL de nivel bancario
-              </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+            <div className="flex items-center space-x-3">
+              <Shield className="w-5 h-5 text-blue-600" />
+              <div>
+                <h4 className="font-medium text-blue-800">Pago 100% Seguro</h4>
+                <p className="text-xs text-blue-600">
+                  Tus datos están protegidos con encriptación SSL
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100">
+            <div className="flex items-center space-x-3">
+              <CheckCircle className="w-5 h-5 text-purple-600" />
+              <div>
+                <h4 className="font-medium text-purple-800">Confirmación Inmediata</h4>
+                <p className="text-xs text-purple-600">
+                  Recibirás confirmación por WhatsApp
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Información adicional según método */}
         {selectedMethod === 'transfer' && (
-          <div className="bg-green-50 rounded-2xl p-4 border border-green-100">
+          <div className="bg-green-50 rounded-2xl p-5 border border-green-100">
             <div className="flex items-start space-x-3 mb-4">
               <AlertCircle className="w-5 h-5 text-green-600 mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-medium text-green-800 mb-3">Datos para transferencia</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-green-200">
-                    <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200">
+                    <div className="flex justify-between items-center mb-1">
                       <p className="text-xs text-green-600 font-medium">CBU</p>
-                      <p className="text-sm text-green-800 font-mono">0000003100010000000001</p>
+                      <button
+                        onClick={() => copyToClipboard('0000003100010000000001', 'CBU')}
+                        className="p-1 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => copyToClipboard('0000003100010000000001', 'CBU')}
-                      className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
+                    <p className="text-sm text-green-800 font-mono">0000003100010000000001</p>
                   </div>
                   
-                  <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-green-200">
-                    <div>
+                  <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200">
+                    <div className="flex justify-between items-center mb-1">
                       <p className="text-xs text-green-600 font-medium">Alias</p>
-                      <p className="text-sm text-green-800 font-mono">CAMPI.NAILS.MP</p>
+                      <button
+                        onClick={() => copyToClipboard('CAMPI.NAILS.MP', 'Alias')}
+                        className="p-1 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => copyToClipboard('CAMPI.NAILS.MP', 'Alias')}
-                      className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
+                    <p className="text-sm text-green-800 font-mono">CAMPI.NAILS.MP</p>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2 text-sm text-green-700">
-                    <div>
-                      <p className="font-medium">Titular:</p>
-                      <p>Campi Nails</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Banco:</p>
-                      <p>Mercado Pago</p>
-                    </div>
+                  <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200">
+                    <p className="text-xs text-green-600 font-medium mb-1">Titular</p>
+                    <p className="text-sm text-green-800">Camila Nails</p>
+                  </div>
+                  
+                  <div className="flex flex-col p-3 bg-white rounded-lg border border-green-200">
+                    <p className="text-xs text-green-600 font-medium mb-1">Banco</p>
+                    <p className="text-sm text-green-800">Mercado Pago</p>
                   </div>
                 </div>
-                <p className="text-xs text-green-600 mt-3">
-                  Copia los datos y sube el comprobante a continuación
-                </p>
-              </div>
-            </div>
-            
-            {/* Subir comprobante */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-green-800 mb-2">
-                Subir comprobante de transferencia
-              </label>
-              
-              {transferReceiptPreview ? (
-                <div className="relative mb-3">
-                  <img 
-                    src={transferReceiptPreview} 
-                    alt="Comprobante" 
-                    className="w-full h-48 object-contain border border-green-200 rounded-xl"
+                
+                {/* Subir comprobante */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-green-800 mb-2">
+                    Subir comprobante de transferencia
+                  </label>
+                  
+                  {transferReceiptPreview ? (
+                    <div className="relative mb-3">
+                      <img 
+                        src={transferReceiptPreview} 
+                        alt="Comprobante" 
+                        className="w-full h-48 object-contain border border-green-200 rounded-xl"
+                      />
+                      <button
+                        onClick={() => {
+                          setTransferReceipt(null);
+                          setTransferReceiptPreview(null);
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div 
+                      className="border-2 border-dashed border-green-300 rounded-xl p-6 text-center cursor-pointer hover:bg-green-50 transition-colors"
+                      onClick={() => document.getElementById('receipt-upload')?.click()}
+                    >
+                      <Camera className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                      <p className="text-sm text-green-700">Haz clic para subir el comprobante</p>
+                      <p className="text-xs text-green-600 mt-1">Formatos: JPG, PNG o PDF</p>
+                    </div>
+                  )}
+                  
+                  <input
+                    id="receipt-upload"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
                   />
-                  <button
-                    onClick={() => {
-                      setTransferReceipt(null);
-                      setTransferReceiptPreview(null);
-                    }}
-                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  </div>
                 </div>
-              ) : (
-                <div 
-                  className="border-2 border-dashed border-green-300 rounded-xl p-6 text-center cursor-pointer hover:bg-green-50 transition-colors"
-                  onClick={() => document.getElementById('receipt-upload')?.click()}
-                >
-                  <Camera className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-sm text-green-700">Haz clic para subir el comprobante</p>
-                  <p className="text-xs text-green-600 mt-1">Formatos: JPG, PNG o PDF</p>
-                </div>
-              )}
-              
-              <input
-                id="receipt-upload"
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
-                className="hidden"
-              />
+              </div>
             </div>
           </div>
         )}
         
         {/* Información para pago en efectivo */}
         {selectedMethod === 'cash' && (
-          <div className="bg-yellow-50 rounded-2xl p-4 border border-yellow-100">
+          <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-100">
             <div className="flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-medium text-yellow-800 mb-3">Información importante</h4>
-                <ul className="space-y-2 text-sm text-yellow-700">
-                  <li className="flex items-start space-x-2">
-                    <div className="w-1 h-1 bg-yellow-500 rounded-full mt-2"></div>
-                    <span>Deberás abonar la seña de {formatCurrency(appointment.deposit_amount)} en efectivo al llegar al local.</span>
-                  </li>
-                  <li className="flex items-start space-x-2">
-                    <div className="w-1 h-1 bg-yellow-500 rounded-full mt-2"></div>
-                    <span>Tu turno quedará pendiente de confirmación hasta que realices el pago.</span>
-                  </li>
-                  <li className="flex items-start space-x-2">
-                    <div className="w-1 h-1 bg-yellow-500 rounded-full mt-2"></div>
-                    <span>Te recomendamos llegar 10 minutos antes para realizar el pago.</span>
-                  </li>
-                  <li className="flex items-start space-x-2">
-                    <div className="w-1 h-1 bg-yellow-500 rounded-full mt-2"></div>
-                    <span>Recuerda que sin el pago de la seña, no se garantiza la reserva del turno.</span>
-                  </li>
-                </ul>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-white p-3 rounded-lg border border-yellow-200">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <DollarSign className="w-4 h-4 text-yellow-600" />
+                      <p className="text-sm font-medium text-yellow-800">Monto a pagar</p>
+                    </div>
+                    <p className="text-sm text-yellow-700">
+                      {formatCurrency(appointment.deposit_amount)} en efectivo al llegar
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-yellow-200">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Clock className="w-4 h-4 text-yellow-600" />
+                      <p className="text-sm font-medium text-yellow-800">Llega antes</p>
+                    </div>
+                    <p className="text-sm text-yellow-700">
+                      10 minutos antes para realizar el pago
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-yellow-200 md:col-span-2">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <AlertCircle className="w-4 h-4 text-yellow-600" />
+                      <p className="text-sm font-medium text-yellow-800">Importante</p>
+                    </div>
+                    <p className="text-sm text-yellow-700">
+                      Sin el pago de la seña, no se garantiza la reserva del turno
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
