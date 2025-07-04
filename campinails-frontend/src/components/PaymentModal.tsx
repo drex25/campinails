@@ -37,7 +37,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         icon: Smartphone, 
         color: 'from-blue-500 to-indigo-500', 
         popular: true, 
-        badge: '✨ Recomendado'
+        badge: 'Recomendado'
       }, 
       { 
         id: 'stripe' as const, 
@@ -57,7 +57,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         icon: Banknote, 
         color: 'from-yellow-500 to-orange-500', 
         popular: false,
-        badge: 'Pago en local'
+        badge: 'En local'
       }, 
       { 
         id: 'transfer' as const, 
@@ -369,7 +369,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <button
                         key={method.id}
                         onClick={() => setSelectedMethod(method.id)}
-                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 transform ${
+                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 transform relative ${
                           selectedMethod === method.id
                             ? 'border-pink-300 bg-pink-50 shadow-md scale-105'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02]'
@@ -383,7 +383,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <div className="flex items-center">
                               <span className="font-medium text-gray-800">{method.name}</span>
                               {method.badge && (
-                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-medium border border-white shadow-md transform rotate-2 z-10">
+                                <span className="absolute -top-3 -right-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs px-3 py-1 rounded-full font-medium border border-white shadow-md transform rotate-2 z-10">
                                   {method.badge}
                                 </span>
                               )}
@@ -416,7 +416,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <button
                         key={method.id}
                         onClick={() => setSelectedMethod(method.id)}
-                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 transform ${
+                        className={`w-full p-3 rounded-xl border-2 transition-all duration-200 transform relative ${
                           selectedMethod === method.id
                             ? 'border-pink-300 bg-pink-50 shadow-md scale-105'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02]'
@@ -430,7 +430,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <div className="flex items-center">
                               <span className="font-medium text-gray-800">{method.name}</span>
                               {method.badge && (
-                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-medium border border-white shadow-md transform rotate-2 z-10">
+                                <span className="absolute -top-3 -right-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs px-3 py-1 rounded-full font-medium border border-white shadow-md transform rotate-2 z-10">
                                   {method.badge}
                                 </span>
                               )}

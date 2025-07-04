@@ -289,19 +289,32 @@
 /* Badge styles */
 .badge-overlap {
   position: absolute;
-  top: -0.5rem;
-  right: -0.5rem;
+  top: -0.75rem;
+  right: -0.75rem;
   z-index: 10;
-  transform: rotate(3deg);
+  transform: rotate(2deg);
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(to right, #ec4899, #f43f5e);
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .badge-ribbon {
   position: absolute;
-  top: 1rem;
-  right: -0.5rem;
+  top: 0.5rem;
+  right: -1rem;
   padding: 0.25rem 1rem;
   clip-path: polygon(0 0, 100% 0, 100% 70%, 90% 100%, 0 100%);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(to right, #ec4899, #f43f5e);
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  z-index: 10;
 }
 
 .badge-corner {
