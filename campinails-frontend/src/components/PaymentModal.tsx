@@ -80,7 +80,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       // Para MercadoPago y Stripe, procesar pago automático
       const paymentData = {
         appointment_id: appointment.id,
-        amount: appointment.deposit_amount,
+        amount: appointment.deposit_amount || 0,
         payment_method: selectedMethod,
         payment_provider: selectedMethod,
         metadata: {
@@ -126,7 +126,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       // Crear pago pendiente para efectivo
       const paymentData = {
         appointment_id: appointment.id,
-        amount: appointment.deposit_amount,
+        amount: appointment.deposit_amount || 0,
         payment_method: 'cash',
         payment_provider: 'manual',
         metadata: {
@@ -168,7 +168,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       // Crear pago pendiente para transferencia
       const paymentData = {
         appointment_id: appointment.id,
-        amount: appointment.deposit_amount,
+        amount: appointment.deposit_amount || 0,
         payment_method: 'transfer',
         payment_provider: 'manual',
         metadata: {
@@ -261,11 +261,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <div className={`rounded-2xl p-4 ${isTransfer || isCash ? 'bg-yellow-50' : 'bg-green-50'}`}>
             <p className={`font-medium ${isTransfer || isCash ? 'text-yellow-800' : 'text-green-800'}`}>
               {isTransfer 
-                ? 'Envía el comprobante por WhatsApp para agilizar la confirmación.'
+                {formatCurrency(appointment.deposit_amount || 0)}
                 : isCash
                 ? 'Recuerda llegar 10 minutos antes para realizar el pago.'
                 : 'Recibirás un WhatsApp con la confirmación en breve.'
-              }
+              Total del servicio: {formatCurrency(appointment.total_price || 0)}
             </p>
           </div>
         </div>

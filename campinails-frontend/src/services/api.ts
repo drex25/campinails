@@ -145,7 +145,20 @@ export const appointmentService = {
   async create(data: CreateAppointmentRequest) {
     const response = await api.post<CreateAppointmentResponse>('/appointments', data);
     console.log('Respuesta de creación de turno:', response.data);
-    return response.data;
+    
+    // Asegurarse de que tenemos un objeto de cita válido
+    if (!response.data.appointment && response.data) {
+      // Si la respuesta es directamente el objeto de cita
+      return {
+        appointment: response.data as unknown as Appointment,
+        requires_payment: false
+      };
+    }
+    
+    return {
+      ...response.data,
+      requires_payment: !!response.data.requires_payment
+    };
   },
 
   async update(id: number, data: Partial<Appointment>) {

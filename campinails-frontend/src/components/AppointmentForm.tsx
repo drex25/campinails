@@ -166,7 +166,7 @@ export const AppointmentForm: React.FC = () => {
       console.log('Enviando cita con fecha/hora:', {
         selectedDate,
         selectedSlot: selectedSlot.start_time,
-        scheduledDateTime,
+        scheduledDateTime: scheduledDateTime,
         employee: selectedEmployee?.name
       });
       
@@ -182,15 +182,17 @@ export const AppointmentForm: React.FC = () => {
       
       console.log('Cita creada:', {
         id: appointment.id,
-        scheduled_at: appointment.scheduled_at,
+        scheduled_at: appointment.scheduled_at || appointment.appointment?.scheduled_at,
         employee: appointment.employee?.name,
-        requires_payment: appointment.deposit_amount > 0 && selectedService?.requires_deposit
+        requires_payment: selectedService?.requires_deposit && selectedService?.deposit_percentage > 0
       });
       
-      setCreatedAppointment(appointment);
+      // Asegurarse de que tenemos el objeto de cita correcto
+      const appointmentData = appointment.appointment || appointment;
+      setCreatedAppointment(appointmentData);
       
       // Si el servicio requiere seña, mostrar modal de pago
-      if (paymentRequired && appointment.deposit_amount > 0) {
+      if (paymentRequired && (appointmentData.deposit_amount > 0)) {
         setShowPaymentModal(true);
       } else {
         setIsSuccess(true);

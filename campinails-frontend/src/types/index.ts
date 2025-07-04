@@ -108,10 +108,11 @@ export interface CreateAppointmentRequest {
 }
 
 export interface CreateAppointmentResponse {
-  appointment: Appointment;
+  appointment?: Appointment;
   payment_url?: string;
   payment_id?: string;
-  requires_payment: boolean;
+  requires_payment?: boolean;
+  message?: string;
 }
 
 export interface CreateTimeSlotRequest {

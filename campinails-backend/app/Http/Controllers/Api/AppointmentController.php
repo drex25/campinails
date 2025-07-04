@@ -171,15 +171,11 @@ class AppointmentController extends Controller
                 $result = $paymentService->processPayment($payment);
                 
                 if ($result['success']) {
-                    // Actualizar el pago con el método real
                     $payment->update([
-                        'payment_method' => 'mercadopago',
-                        'payment_provider' => 'mercadopago',
                         'provider_payment_id' => $result['payment_id'],
                         'status' => 'processing'
                     ]);
                     
-                    // Devolver la información necesaria para el pago
                     return response()->json([
                         'appointment' => $appointment->load(['service', 'client', 'employee']),
                         'payment_url' => $result['init_point'] ?? $result['sandbox_init_point'] ?? $result['checkout_url'],
@@ -209,10 +205,7 @@ class AppointmentController extends Controller
         }
         
         // Si no requiere seña o si ocurrió algún error, devolver solo el turno
-        return response()->json([
-            'appointment' => $appointment->load(['service', 'client', 'employee']),
-            'requires_payment' => $service->requires_deposit && $deposit_amount > 0
-        ], 201);
+        return response()->json($appointment->load(['service', 'client', 'employee']), 201);
     }
 
     /**
