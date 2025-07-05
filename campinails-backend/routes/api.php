@@ -41,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
     Route::get('/dashboard/upcoming-appointments', [DashboardController::class, 'getUpcomingAppointments']);
     Route::get('/dashboard/recent-activity', [DashboardController::class, 'getRecentActivity']);
-    
+
     // CRUD básico
     Route::apiResource('services', ServiceController::class);
     Route::apiResource('clients', ClientController::class);
@@ -52,24 +52,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('payments', PaymentController::class);
     Route::apiResource('promotions', PromotionController::class);
     Route::apiResource('products', ProductController::class);
-    
+
     // Rutas adicionales para TimeSlots
     Route::post('/time-slots/bulk', [TimeSlotController::class, 'createBulk']);
     Route::patch('/time-slots/{id}/toggle-block', [TimeSlotController::class, 'toggleBlock']);
-    
+
     // Rutas adicionales para Employees
     Route::get('/employees/{id}/schedule', [EmployeeController::class, 'getSchedule']);
     Route::post('/employees/{id}/slots', [EmployeeController::class, 'createSlots']);
-    
+
     // Rutas adicionales para Notifications
     Route::patch('/notifications/{id}/mark-as-read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/{id}/resend', [NotificationController::class, 'resend']);
     Route::post('/notifications/bulk', [NotificationController::class, 'sendBulk']);
-    
+
     // Rutas adicionales para Payments
     Route::post('/payments/{id}/confirm', [PaymentController::class, 'confirm']);
     Route::post('/payments/{id}/refund', [PaymentController::class, 'refund']);
-    
+
     // Rutas adicionales para Products
     Route::post('/products/{id}/adjust-stock', [ProductController::class, 'adjustStock']);
     Route::get('/products/low-stock', [ProductController::class, 'getLowStock']);
